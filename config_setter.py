@@ -10,5 +10,5 @@ check_interval = config.getint('setup', 'check_interval')
 logging_level = config.get('setup', 'logging_level')
 
 fails_required = config.getint('preferrences', 'fails_required')
-text_interval = config.getfloat('preferrences', 'text_interval')
-send_succeed = config.getboolean('preferrences', 'send_succeed')
+down_text_interval = config.getfloat('preferrences', 'down_text_interval')
+up_text_interval = config.getfloat('preferrences', 'up_text_interval')
