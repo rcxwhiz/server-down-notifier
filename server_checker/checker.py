@@ -1,10 +1,10 @@
-import bs4
 import coloredlogs
 import logging
-import requests
 import time
+import socket
 
 import config_setter as cfg
+from mcstatus import MinecraftServer
 
 coloredlogs.install(level=cfg.logging_level, ftm='%(asctime)s %(message)s')
 
@@ -12,6 +12,7 @@ coloredlogs.install(level=cfg.logging_level, ftm='%(asctime)s %(message)s')
 class Checker:
 
 	def __init__(self):
+		self.server = MinecraftServer(cfg.server_url)
 		logging.info('Initializing checker')
 		cfg.up_text_interval *= 60
 		cfg.down_text_interval *= 60
@@ -22,16 +23,20 @@ class Checker:
 			self.down_loop()
 
 	def check_server_up(self):
-		for i in range(cfg.fails_required):
-			res = requests.get(cfg.status_url)
-			res.raise_for_status()
-			status_page = bs4.BeautifulSoup(res.text, 'html.parser')
-			if len(status_page.find_all('div', {'class': 'table-responsive'})) > 0:
-				logging.debug(f'Attempt {i + 1} to access server succsessful')
-				return True
-			else:
-				logging.debug(f'Attempt {i + 1} to access server unsuccessful')
-		return False
+		logging.debug('Attempting to contact server')
+		try:
+			status = self.server.status(cfg.fails_required)
+		except socket.timeout:
+			logging.debug('Attempt to contact server timed out')
+			return False
+		except socket.gaierror:
+			logging.critical('Unable to resolve server address from config')
+			return False
+		except OSError:
+			logging.info('There server responded but not with info')
+			return False
+		logging.debug('Contact with server successful')
+		return True
 
 	def up_loop(self):
 		player_list = []
@@ -77,8 +82,9 @@ class Checker:
 
 	def send_up_message(self, uptime, player_list):
 		logging.info("The server is up???")
-		# TODO make this send as a text
+
+	# TODO make this send as a text
 
 	def send_down_message(self, downtime):
 		logging.warning("The server is down???")
-		# TODO make this send as a text
+	# TODO make this send as a text
