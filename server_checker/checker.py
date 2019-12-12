@@ -12,9 +12,9 @@ coloredlogs.install(level=cfg.logging_level, ftm='%(asctime)s %(message)s')
 class Checker:
 
 	def __init__(self):
+		self.player_summary = {}
 		self.server = MinecraftServer(cfg.server_url)
 		logging.info('Initializing checker')
-		player_summary = {}
 		cfg.up_text_interval *= 60
 		cfg.down_text_interval *= 60
 		cfg.check_interval *= 60
@@ -50,7 +50,7 @@ class Checker:
 				return None
 
 			if (not cfg.up_text_interval == 0) and (time_since_message > cfg.up_text_interval):
-				self.send_up_message(uptime, player_list)
+				self.send_up_message(uptime, self.player_summary)
 				time_since_message = 0
 				logging.debug(f'Waiting {cfg.up_text_interval / 60:.1f} mins to send up message again')
 
