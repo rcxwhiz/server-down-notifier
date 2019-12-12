@@ -8,3 +8,7 @@ class Checker:
 
 	def __init__(self):
 		logging.info('Initializing checker')
+		self.print_test()
+
+	def print_test(self):
+		logging.info('TEST!')
