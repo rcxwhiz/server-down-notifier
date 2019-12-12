@@ -1,2 +1,2 @@
 # server-down-notifier
-Texts if server is down
+This program is made to send a text if a server goes down with some other options.
