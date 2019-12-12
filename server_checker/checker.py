@@ -43,7 +43,7 @@ class Checker:
 		time_since_message = cfg.up_text_interval + 1
 		uptime = 0
 
-		logging.info('Entering up_loop')
+		logging.debug('Entering up_loop')
 		while True:
 			if not self.check_server_up():
 				self.down_loop()
@@ -64,7 +64,7 @@ class Checker:
 		time_since_message = cfg.down_text_interval + 1
 		downtime = 0
 
-		logging.info('Entering down loop')
+		logging.debug('Entering down loop')
 		while True:
 			if self.check_server_up():
 				self.up_loop()
