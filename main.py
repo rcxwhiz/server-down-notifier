@@ -1,3 +1,7 @@
-import server_checker as sc
+from server_checker import *
+logging.info('Starting server down notifier program')
+checker = Checker()
 
-# TODO make a checker instance
+# stuff
+
+logging.info('Exiting server down notifier')

@@ -7,4 +7,4 @@ coloredlogs.install(level=cfg.logging_level, ftm='%(asctime)s %(levelname)s %mes
 class Checker:
 
 	def __init__(self):
-		logging.debug('Initializing checker')
+		logging.info('Initializing checker')
