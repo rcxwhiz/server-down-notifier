@@ -14,6 +14,7 @@ class Checker:
 	def __init__(self):
 		self.server = MinecraftServer(cfg.server_url)
 		logging.info('Initializing checker')
+		player_summary = {}
 		cfg.up_text_interval *= 60
 		cfg.down_text_interval *= 60
 		cfg.check_interval *= 60
@@ -39,7 +40,6 @@ class Checker:
 		return True
 
 	def up_loop(self):
-		player_list = []
 		time_since_message = cfg.up_text_interval + 1
 		uptime = 0
 
