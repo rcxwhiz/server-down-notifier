@@ -1,16 +1,20 @@
-import coloredlogs
-import logging
-import time
-import re
-import socket
-import yagmail
-
-import config_setter as cfg
-from mcstatus import MinecraftServer
-
-coloredlogs.DEFAULT_LOG_FORMAT = '[%(asctime)s] [%(hostname)s] [%(levelname)s] %(message)s'
-coloredlogs.DEFAULT_FIELD_STYLES = {'asctime': {'color': 'yellow'}, 'hostname': {'color': 'white'}, 'levelname': {'color': 'yellow', 'bold': True}, 'name': {'color': 'blue'}, 'programname': {'color': 'cyan'}}
-coloredlogs.install(level=cfg.logging_level)
+from server_checker.checker_setup import *
+# TODO use a threading timer to have this run while accepting input now
+# TODO the threading timer will act much more as a timer
+commands = [
+	'print status',
+	'text status',
+	'get status',
+	'next text',
+	'next status',
+	'last status',
+	'stop',
+	'debug level debug',
+	'debug level info',
+	'debug level warning',
+	'debug level error',
+	'debug level critical'
+	]
 
 
 class Checker:
