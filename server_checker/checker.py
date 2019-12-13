@@ -18,7 +18,10 @@ class Checker:
 		cfg.up_text_interval *= 60
 		cfg.down_text_interval *= 60
 		cfg.check_interval *= 60
+		self.time_since_message = cfg.up_text_interval
 		self.up_loop()
+		self.timer = 0
+		self.when_timer_set = 0
 
 	def command(self, command):
 		commands = [
@@ -40,6 +43,8 @@ class Checker:
 		if command not in commands:
 			logging.error(f'Command not found in {commands}')
 			return None
+		if command == commands[4]:
+			logging.info(f'Next contact with server in {(time.time() - self.when_timer_set) / 60:.1f} mins')
 
 	def send_text_yagmail(self, content, subject_in=''):
 		yag = yagmail.SMTP(cfg.email_address, self.email_pswd)
@@ -76,65 +81,67 @@ class Checker:
 		return True
 
 	def up_loop(self):
-		time_since_message = cfg.up_text_interval
-		self.server_downtime = 0
+		if not self.check_server_up():
+			self.timer.cancel()
+			self.player_summary = {}
+			self.pings = []
+			self.server_uptime = 0
+			self.time_since_message = cfg.down_text_interval
 
-		logging.debug('Entering up_loop')
-		while True:
-			if not self.check_server_up():
-				self.down_loop()
-				return None
+			logging.debug('Entering down loop')
+			self.down_loop()
+			return None
 
-			if (not cfg.up_text_interval == 0) and (time_since_message >= cfg.up_text_interval):
-				self.send_up_message()
-				time_since_message = 0
-				logging.debug(f'Waiting {cfg.up_text_interval / 60:.1f} mins to send up message again')
+		if (not cfg.up_text_interval == 0) and (self.time_since_message >= cfg.up_text_interval):
+			self.send_up_message()
+			self.time_since_message = 0
+			logging.debug(f'Waiting {cfg.up_text_interval / 60:.1f} mins to send up message again')
 
-			to_wait = cfg.check_interval
-			if (cfg.up_text_interval - time_since_message) < cfg.check_interval:
-				to_wait = cfg.up_text_interval - time_since_message
-			logging.debug(f'Waiting {to_wait / 60:.1f} mins to check server again')
-			time.sleep(to_wait)
-			time_since_message += to_wait
-			self.server_uptime += to_wait
+		to_wait = cfg.check_interval
+		if (cfg.up_text_interval - self.time_since_message) < cfg.check_interval:
+			to_wait = cfg.up_text_interval - self.time_since_message
+		logging.debug(f'Waiting {to_wait / 60:.1f} mins to check server again')
+		self.time_since_message += to_wait
+		self.server_uptime += to_wait
+		self.when_timer_set = time.time()
+		self.timer = threading.Timer(to_wait, self.up_loop).start()
 
 	def down_loop(self):
-		self.player_summary = {}
-		self.pings = []
-		self.server_uptime = 0
-		time_since_message = cfg.down_text_interval
+		if self.time_since_message >= cfg.down_text_interval:
+			self.send_down_message()
+			self.time_since_message = 0
+			logging.debug(f'Waiting {cfg.down_text_interval / 60:.1f} mins to send down message again')
 
-		logging.debug('Entering down loop')
-		while True:
-			if time_since_message >= cfg.down_text_interval:
-				self.send_down_message()
-				time_since_message = 0
-				logging.debug(f'Waiting {cfg.down_text_interval / 60:.1f} mins to send down message again')
+		to_wait = cfg.check_interval
+		if (cfg.down_text_interval - self.time_since_message) < cfg.check_interval:
+			to_wait = cfg.down_text_interval - self.time_since_message
+		logging.debug(f'Waiting {to_wait / 60:.1f} mins to check server again')
+		if cfg.down_text_interval > 0:
+			self.time_since_message += to_wait
+		self.server_downtime += to_wait
+		self.when_timer_set = time.time()
+		self.timer = threading.Timer(to_wait, self.down_loop).start()
 
-			to_wait = cfg.check_interval
-			if (cfg.down_text_interval - time_since_message) < cfg.check_interval:
-				to_wait = cfg.down_text_interval - time_since_message
-			logging.debug(f'Waiting {to_wait / 60:.1f} mins to check server again')
-			time.sleep(to_wait)
-			if cfg.down_text_interval > 0:
-				time_since_message += to_wait
-			self.server_downtime += to_wait
+		if self.check_server_up():
+			self.timer.cancel()
+			self.time_since_message = cfg.up_text_interval
+			self.server_downtime = 0
 
-			if self.check_server_up():
-				self.up_loop()
-				return None
+			logging.debug('Entering up_loop')
+			self.up_loop()
+			return None
 
 	def send_up_message(self):
 		# TODO make the messages look less bad
 		logging.info(f'Server {cfg.server_address} online - Uptime: {self.server_uptime / 3600:.1f} hrs')
 		message_subject = f'Server Status {cfg.server_address}: Online'
 		message = f'Uptime: {self.server_uptime / 3600:.1f} hrs\r'
-		message += f'Avg ping: {sum(self.pings) / len(self.pings):.0f}\r'
-		logging.info(f'Avg ping: {sum(self.pings) / len(self.pings):.0f}')
-		message += f'Max ping: {max(self.pings):.0f}\r'
-		logging.info(f'Max ping: {max(self.pings):.0f}')
-		message += f'Last ping: {self.pings[-1]:.0f}\r'
-		logging.info(f'Last ping: {self.pings[-1]:.0f}')
+		message += f'Avg ping: {sum(self.pings) / len(self.pings):.0f} ms\r'
+		logging.info(f'Avg ping: {sum(self.pings) / len(self.pings):.0f} ms')
+		message += f'Max ping: {max(self.pings):.0f} ms\r'
+		logging.info(f'Max ping: {max(self.pings):.0f} ms')
+		message += f'Last ping: {self.pings[-1]:.0f} ms\r'
+		logging.info(f'Last ping: {self.pings[-1]:.0f} ms')
 		message += 'Players online:'
 		logging.info('Players online:')
 		for player in self.player_summary.keys():
