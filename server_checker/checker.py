@@ -9,6 +9,7 @@ import config_setter as cfg
 from mcstatus import MinecraftServer
 
 coloredlogs.DEFAULT_LOG_FORMAT = '[%(asctime)s] [%(hostname)s] [%(levelname)s] %(message)s'
+coloredlogs.DEFAULT_FIELD_STYLES = {'asctime': {'color': 'yellow'}, 'hostname': {'color': 'white'}, 'levelname': {'color': 'yellow', 'bold': True}, 'name': {'color': 'blue'}, 'programname': {'color': 'cyan'}}
 coloredlogs.install(level=cfg.logging_level)
 
 
