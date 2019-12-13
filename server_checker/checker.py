@@ -58,7 +58,7 @@ class Checker:
 			logging.critical('Unable to resolve server address from config')
 			return False
 		except OSError:
-			logging.warning('There server responded but not with info')
+			logging.warning('The server responded but not with info')
 			return False
 		logging.debug('Contact with server successful')
 
