@@ -7,7 +7,8 @@ import yagmail
 import config_setter as cfg
 from mcstatus import MinecraftServer
 
-coloredlogs.install(level=cfg.logging_level, ftm='%(asctime)s %(message)s')
+coloredlogs.DEFAULT_LOG_FORMAT = '[%(asctime)s] [%(hostname)s] %(message)s'
+coloredlogs.install(level=cfg.logging_level)
 
 
 class Checker:
@@ -18,7 +19,7 @@ class Checker:
 		self.email_pswd = email_password_in
 		self.player_summary = {}
 		self.server = MinecraftServer(cfg.server_address)
-		self.status = -cfg.check_interval
+		self.status = 0
 		self.server_uptime = 0
 		self.server_downtime = 0
 		cfg.up_text_interval *= 60
@@ -55,9 +56,6 @@ class Checker:
 					self.player_summary[player] = cfg.check_interval / 2
 				else:
 					self.player_summary[player] += cfg.check_interval
-
-		self.server_uptime += cfg.check_interval
-
 		return True
 
 	def up_loop(self):
@@ -109,15 +107,17 @@ class Checker:
 				return None
 
 	def send_up_message(self):
-		logging.info(f'Server online - Uptime: {self.server_uptime / 3600:.1f} hrs')
+		logging.info(f'Server {cfg.server_address} online - Uptime: {self.server_uptime / 3600:.1f} hrs')
 		logging.info('Players online:')
-		message_subject = 'Server Status - Online'
+		message_subject = f'Server Status {cfg.server_address} - Online'
 		message = f'Uptime: {self.server_uptime / 3600:.1f} hrs\rPlayers online:'
 		for player in self.player_summary.keys():
 			logging.info(f'{player}: {self.player_summary[player] / 3600:.1f} hrs')
-			message += f'\n{player}: {self.player_summary[player] / 3600:.1f} hrs'
+			message += f'\r{player}: {self.player_summary[player] / 3600:.1f} hrs'
 		self.send_text_yagmail(message, message_subject)
 
 	def send_down_message(self):
-		logging.warning(f'Server offline - Downtime: {self.server_downtime / 3600:.1f} hrs')
-		self.send_text_yagmail(f'Downtime: {self.server_downtime / 3600:.1f} hrs', 'Server Status - Offline!')
+		logging.warning(f'Server {cfg.server_address} offline - Downtime: {self.server_downtime / 3600:.1f} hrs')
+		message_subject = f'Server {cfg.server_address} Status - Offline!'
+		message = f'Downtime: {self.server_downtime / 3600:.1f} hrs'
+		self.send_text_yagmail(message, message_subject)
