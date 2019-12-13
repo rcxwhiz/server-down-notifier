@@ -119,7 +119,9 @@ class Checker:
 		logging.info('Players online:')
 		message_subject = f'Server Status {cfg.server_address}: Online'
 		message = f'Uptime: {self.server_uptime / 3600:.1f} hrs\r'
-		message += f'Avg ping: {sum(self.pings) / len(self.pings):.0f} Max ping: {max(self.pings):.0f}\r'
+		message += f'Avg ping: {sum(self.pings) / len(self.pings):.0f}\r'
+		message += f'Max ping: {max(self.pings):.0f}\r'
+		message += f'Last ping: {self.pings[-1]:.0f}\r'
 		message += 'Players online:'
 		for player in self.player_summary.keys():
 			logging.info(f'{player}: {self.player_summary[player] / 3600:.1f} hrs')
