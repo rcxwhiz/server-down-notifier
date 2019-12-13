@@ -105,7 +105,7 @@ class Checker:
 	def send_up_message(self):
 		logging.info(f'Server online - Uptime: {self.server_uptime / 3600:.1f} hrs')
 		logging.info('Players online:')
-		message_subject = 'Server Status'
+		message_subject = 'Server Status - Online'
 		message = f'Uptime: {self.server_uptime / 3600:.1f} hrs\rPlayers online:'
 		for player in self.player_summary.keys():
 			logging.info(f'{player}: {self.player_summary[player] / 3600:.1f} hrs')
@@ -114,4 +114,4 @@ class Checker:
 
 	def send_down_message(self):
 		logging.warning(f'Server offline - Downtime: {self.server_downtime / 3600:.1f} hrs')
-		self.send_text_yagmail(f'Downtime: {self.server_downtime / 3600:.1f} hrs', 'Server Offline!')
+		self.send_text_yagmail(f'Downtime: {self.server_downtime / 3600:.1f} hrs', 'Server Status - Offline!')
