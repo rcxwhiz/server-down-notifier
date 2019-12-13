@@ -6,4 +6,10 @@ logging.info('Starting server down notifier program')
 
 checker = Checker(email_password)  # checker will automatically initialize itself
 
-logging.error('Exiting server down notifier')
+while True:
+	command = input()
+	checker.command(command)
+	if command == 'stop':
+		break
+
+logging.warning('Exiting server down notifier')

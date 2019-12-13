@@ -1,20 +1,6 @@
 from server_checker.checker_setup import *
 # TODO use a threading timer to have this run while accepting input now
 # TODO the threading timer will act much more as a timer
-commands = [
-	'print status',
-	'text status',
-	'get status',
-	'next text',
-	'next status',
-	'last status',
-	'stop',
-	'debug level debug',
-	'debug level info',
-	'debug level warning',
-	'debug level error',
-	'debug level critical'
-	]
 
 
 class Checker:
@@ -33,6 +19,27 @@ class Checker:
 		cfg.down_text_interval *= 60
 		cfg.check_interval *= 60
 		self.up_loop()
+
+	def command(self, command):
+		commands = [
+			'print status',
+			'text status',
+			'get status',
+			'next text',
+			'next status',
+			'last status',
+			'stop',
+			'debug level debug',
+			'debug level info',
+			'debug level warning',
+			'debug level error',
+			'debug level critical',
+			'set status interval',
+			'set text interval'
+		]
+		if command not in commands:
+			logging.error(f'Command not found in {commands}')
+			return None
 
 	def send_text_yagmail(self, content, subject_in=''):
 		yag = yagmail.SMTP(cfg.email_address, self.email_pswd)
@@ -118,15 +125,16 @@ class Checker:
 				return None
 
 	def send_up_message(self):
+		# TODO make the messages look less bad
 		logging.info(f'Server {cfg.server_address} online - Uptime: {self.server_uptime / 3600:.1f} hrs')
 		message_subject = f'Server Status {cfg.server_address}: Online'
 		message = f'Uptime: {self.server_uptime / 3600:.1f} hrs\r'
 		message += f'Avg ping: {sum(self.pings) / len(self.pings):.0f}\r'
-		logging.info(f'Avg ping: {sum(self.pings) / len(self.pings):.0f}\r')
+		logging.info(f'Avg ping: {sum(self.pings) / len(self.pings):.0f}')
 		message += f'Max ping: {max(self.pings):.0f}\r'
-		logging.info(f'Max ping: {max(self.pings):.0f}\r')
+		logging.info(f'Max ping: {max(self.pings):.0f}')
 		message += f'Last ping: {self.pings[-1]:.0f}\r'
-		logging.info(f'Last ping: {self.pings[-1]:.0f}\r')
+		logging.info(f'Last ping: {self.pings[-1]:.0f}')
 		message += 'Players online:'
 		logging.info('Players online:')
 		for player in self.player_summary.keys():
