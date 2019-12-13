@@ -1,9 +1,13 @@
 import coloredlogs
 import logging
 import time
+import smtplib
 import socket
+import yagmail
 
 import config_setter as cfg
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from mcstatus import MinecraftServer
 
 coloredlogs.install(level=cfg.logging_level, ftm='%(asctime)s %(message)s')
@@ -11,8 +15,12 @@ coloredlogs.install(level=cfg.logging_level, ftm='%(asctime)s %(message)s')
 
 class Checker:
 
-	def __init__(self):
+	def __init__(self, email_password_in):
 		logging.info('Initializing checker')
+
+		self.email_pswd = email_password_in
+		self.send_text_yagmail('It worked')
+
 		self.player_summary = {}
 		self.server = MinecraftServer(cfg.server_url)
 		self.status = -cfg.check_interval
@@ -22,6 +30,24 @@ class Checker:
 		cfg.down_text_interval *= 60
 		cfg.check_interval *= 60
 		self.up_loop()
+
+	def send_text_yagmail(self, content):
+		yag = yagmail.SMTP(cfg.email_address, self.email_pswd)
+		yag.send(cfg.sms_gateway, 'subject', content)
+
+	def send_text(self, content):
+		email_server = smtplib.SMTP(cfg.smtp, cfg.email_port)
+		email_server.starttls()
+		email_server.login(cfg.email_address, self.email_pswd)
+
+		msg = MIMEMultipart()
+		# msg['From'] = cfg.email_address
+		# msg['To'] = cfg.sms_gateway
+		msg['Subject'] = ' Server Status\n'
+		msg.attach(MIMEText(f' {content}\n', 'plain'))
+		sms = msg.as_string()
+		email_server.sendmail(cfg.email_address, cfg.sms_gateway, sms)
+		email_server.quit()
 
 	def check_server_up(self):
 		logging.info('Attempting to contact server')
@@ -38,15 +64,16 @@ class Checker:
 			return False
 		logging.debug('Contact with server successful')
 
-		current_players = []
-		for player_ob in self.status.players.sample:
-			current_players.append(player_ob.name)
+		if self.status.players.sample is not None:
+			current_players = []
+			for player_ob in self.status.players.sample:
+				current_players.append(player_ob.name)
 
-		for player in current_players:
-			if player not in self.player_summary.keys():
-				self.player_summary[player] = cfg.check_interval / 2
-			else:
-				self.player_summary[player] += cfg.check_interval
+			for player in current_players:
+				if player not in self.player_summary.keys():
+					self.player_summary[player] = cfg.check_interval / 2
+				else:
+					self.player_summary[player] += cfg.check_interval
 
 		self.server_uptime += cfg.check_interval
 
