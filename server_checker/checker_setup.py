@@ -9,6 +9,7 @@ import yagmail
 
 import config_setter as cfg
 from mcstatus import MinecraftServer
+from datetime import datetime
 
 coloredlogs.DEFAULT_LOG_FORMAT = '[%(asctime)s] [%(levelname)s] %(message)s'
 coloredlogs.DEFAULT_FIELD_STYLES = {

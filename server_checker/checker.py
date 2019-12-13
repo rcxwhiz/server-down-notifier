@@ -191,6 +191,7 @@ class Checker:
 	def send_up_message(self):
 		message_subject = f'Server Status {cfg.server_address}: Online'
 		message = f'Uptime: {self.server_uptime / 3600:.1f} hrs\r'
+		message += f'[{datetime.now().strftime("%I:%M:%S %p")}]'
 		message += f'Avg ping: {sum(self.pings) / len(self.pings):.0f} ms\r'
 		message += f'Max ping: {max(self.pings):.0f} ms\r'
 		message += f'Last ping: {self.pings[-1]:.0f} ms\r'
@@ -205,4 +206,5 @@ class Checker:
 	def send_down_message(self):
 		message_subject = f'Server {cfg.server_address} Status: Offline!'
 		message = f'Downtime: {self.server_downtime / 3600:.1f} hrs'
+		message += f'[{datetime.now().strftime("%I:%M:%S %p")}]'
 		self.send_text_yagmail(message, message_subject)
