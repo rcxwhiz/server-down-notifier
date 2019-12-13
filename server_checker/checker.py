@@ -29,8 +29,6 @@ class Checker:
 		cfg.check_interval *= 60
 		self.up_loop()
 
-
-
 	def send_text_yagmail(self, content, subject_in=''):
 		yag = yagmail.SMTP(cfg.email_address, self.email_pswd)
 		yag.send(cfg.sms_gateway, subject_in, content)
@@ -116,13 +114,16 @@ class Checker:
 
 	def send_up_message(self):
 		logging.info(f'Server {cfg.server_address} online - Uptime: {self.server_uptime / 3600:.1f} hrs')
-		logging.info('Players online:')
 		message_subject = f'Server Status {cfg.server_address}: Online'
 		message = f'Uptime: {self.server_uptime / 3600:.1f} hrs\r'
 		message += f'Avg ping: {sum(self.pings) / len(self.pings):.0f}\r'
+		logging.info(f'Avg ping: {sum(self.pings) / len(self.pings):.0f}\r')
 		message += f'Max ping: {max(self.pings):.0f}\r'
+		logging.info(f'Max ping: {max(self.pings):.0f}\r')
 		message += f'Last ping: {self.pings[-1]:.0f}\r'
+		logging.info(f'Last ping: {self.pings[-1]:.0f}\r')
 		message += 'Players online:'
+		logging.info('Players online:')
 		for player in self.player_summary.keys():
 			logging.info(f'{player}: {self.player_summary[player] / 3600:.1f} hrs')
 			message += f'\r{player}: {self.player_summary[player] / 3600:.1f} hrs'
