@@ -1,13 +1,10 @@
 import coloredlogs
 import logging
 import time
-import smtplib
 import socket
 import yagmail
 
 import config_setter as cfg
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from mcstatus import MinecraftServer
 
 coloredlogs.install(level=cfg.logging_level, ftm='%(asctime)s %(message)s')
@@ -19,8 +16,6 @@ class Checker:
 		logging.info('Initializing checker')
 
 		self.email_pswd = email_password_in
-		self.send_text_yagmail('It worked')
-
 		self.player_summary = {}
 		self.server = MinecraftServer(cfg.server_url)
 		self.status = -cfg.check_interval
@@ -31,23 +26,9 @@ class Checker:
 		cfg.check_interval *= 60
 		self.up_loop()
 
-	def send_text_yagmail(self, content):
+	def send_text_yagmail(self, content, subject_in=''):
 		yag = yagmail.SMTP(cfg.email_address, self.email_pswd)
-		yag.send(cfg.sms_gateway, 'subject', content)
-
-	def send_text(self, content):
-		email_server = smtplib.SMTP(cfg.smtp, cfg.email_port)
-		email_server.starttls()
-		email_server.login(cfg.email_address, self.email_pswd)
-
-		msg = MIMEMultipart()
-		# msg['From'] = cfg.email_address
-		# msg['To'] = cfg.sms_gateway
-		msg['Subject'] = ' Server Status\n'
-		msg.attach(MIMEText(f' {content}\n', 'plain'))
-		sms = msg.as_string()
-		email_server.sendmail(cfg.email_address, cfg.sms_gateway, sms)
-		email_server.quit()
+		yag.send(cfg.sms_gateway, subject_in, content)
 
 	def check_server_up(self):
 		logging.info('Attempting to contact server')
@@ -124,10 +105,13 @@ class Checker:
 	def send_up_message(self):
 		logging.info(f'Server online - Uptime: {self.server_uptime / 3600:.1f} hrs')
 		logging.info('Players online:')
+		message_subject = 'Server Status'
+		message = f'Uptime: {self.server_uptime / 3600:.1f} hrs\rPlayers online:'
 		for player in self.player_summary.keys():
 			logging.info(f'{player}: {self.player_summary[player] / 3600:.1f} hrs')
-		# TODO make this send as a text
+			message += f'\n{player}: {self.player_summary[player] / 3600:.1f} hrs'
+		self.send_text_yagmail(message, message_subject)
 
 	def send_down_message(self):
 		logging.warning(f'Server offline - Downtime: {self.server_downtime / 3600:.1f} hrs')
-		# TODO make this send as a text
+		self.send_text_yagmail(f'Downtime: {self.server_downtime / 3600:.1f} hrs', 'Server Offline!')
