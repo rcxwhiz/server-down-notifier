@@ -17,7 +17,7 @@ class Checker:
 
 		self.email_pswd = email_password_in
 		self.player_summary = {}
-		self.server = MinecraftServer(cfg.server_url)
+		self.server = MinecraftServer(cfg.server_address)
 		self.status = -cfg.check_interval
 		self.server_uptime = 0
 		self.server_downtime = 0
@@ -75,10 +75,13 @@ class Checker:
 				time_since_message = 0
 				logging.debug(f'Waiting {cfg.up_text_interval / 60:.1f} mins to send up message again')
 
-			logging.debug(f'Waiting {cfg.check_interval / 60:.1f} mins to check server again')
-			time.sleep(cfg.check_interval)
-			time_since_message += cfg.check_interval
-			self.server_uptime += cfg.check_interval
+			to_wait = cfg.check_interval
+			if (cfg.up_text_interval - time_since_message) < cfg.check_interval:
+				to_wait = cfg.up_text_interval - time_since_message
+			logging.debug(f'Waiting {to_wait / 60:.1f} mins to check server again')
+			time.sleep(to_wait)
+			time_since_message += to_wait
+			self.server_uptime += to_wait
 
 	def down_loop(self):
 		self.player_summary = {}
@@ -92,11 +95,14 @@ class Checker:
 				time_since_message = 0
 				logging.debug(f'Waiting {cfg.down_text_interval / 60:.1f} mins to send down message again')
 
-			logging.debug(f'Waiting {cfg.check_interval / 60:.1f} mins to check server again')
-			time.sleep(cfg.check_interval)
+			to_wait = cfg.check_interval
+			if (cfg.down_text_interval - time_since_message) < cfg.check_interval:
+				to_wait = cfg.down_text_interval - time_since_message
+			logging.debug(f'Waiting {to_wait / 60:.1f} mins to check server again')
+			time.sleep(to_wait)
 			if cfg.down_text_interval > 0:
-				time_since_message += cfg.check_interval
-			self.server_downtime += cfg.check_interval
+				time_since_message += to_wait
+			self.server_downtime += to_wait
 
 			if self.check_server_up():
 				self.up_loop()
