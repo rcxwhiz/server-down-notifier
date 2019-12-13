@@ -5,6 +5,7 @@ config = ConfigParser()
 config.read(CONFIG_NAME)
 
 server_address = config.get('setup', 'server_address')
+server_port = config.getint('setup', 'server_port')
 sms_gateway = config.get('setup', 'sms_gateway')
 email_address = config.get('setup', 'email_address')
 check_interval = config.getfloat('setup', 'check_interval')
