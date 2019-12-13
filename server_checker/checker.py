@@ -12,11 +12,12 @@ coloredlogs.install(level=cfg.logging_level, ftm='%(asctime)s %(message)s')
 class Checker:
 
 	def __init__(self):
+		logging.info('Initializing checker')
 		self.player_summary = {}
 		self.server = MinecraftServer(cfg.server_url)
 		self.status = -cfg.check_interval
 		self.server_uptime = 0
-		logging.info('Initializing checker')
+		self.server_downtime = 0
 		cfg.up_text_interval *= 60
 		cfg.down_text_interval *= 60
 		cfg.check_interval *= 60
@@ -33,7 +34,7 @@ class Checker:
 			logging.critical('Unable to resolve server address from config')
 			return False
 		except OSError:
-			logging.info('There server responded but not with info')
+			logging.warning('There server responded but not with info')
 			return False
 		logging.debug('Contact with server successful')
 
@@ -53,7 +54,7 @@ class Checker:
 
 	def up_loop(self):
 		time_since_message = cfg.up_text_interval + 1
-		uptime = 0
+		self.server_downtime = 0
 
 		logging.debug('Entering up_loop')
 		while True:
@@ -62,26 +63,24 @@ class Checker:
 				return None
 
 			if (not cfg.up_text_interval == 0) and (time_since_message > cfg.up_text_interval):
-				self.send_up_message(uptime, self.player_summary)
+				self.send_up_message()
 				time_since_message = 0
 				logging.debug(f'Waiting {cfg.up_text_interval / 60:.1f} mins to send up message again')
-
-			# TODO use some webscraping to append to player_list
 
 			logging.debug(f'Waiting {cfg.check_interval / 60:.1f} mins to check server again')
 			time.sleep(cfg.check_interval)
 			time_since_message += cfg.check_interval
+			self.server_uptime += cfg.check_interval
 
 	def down_loop(self):
 		self.player_summary = {}
 		self.server_uptime = 0
 		time_since_message = cfg.down_text_interval + 1
-		downtime = 0
 
 		logging.debug('Entering down loop')
 		while True:
 			if time_since_message > cfg.down_text_interval:
-				self.send_down_message(downtime)
+				self.send_down_message()
 				time_since_message = 0
 				logging.debug(f'Waiting {cfg.down_text_interval / 60:.1f} mins to send down message again')
 
@@ -89,18 +88,19 @@ class Checker:
 			time.sleep(cfg.check_interval)
 			if cfg.down_text_interval > 0:
 				time_since_message += cfg.check_interval
+			self.server_downtime += cfg.check_interval
 
 			if self.check_server_up():
 				self.up_loop()
 				return None
 
-	def send_up_message(self, uptime, player_list):
+	def send_up_message(self):
 		logging.info(f'Server online - Uptime: {self.server_uptime / 3600:.1f} hrs')
 		logging.info('Players online:')
 		for player in self.player_summary.keys():
 			logging.info(f'{player}: {self.player_summary[player] / 3600:.1f} hrs')
 		# TODO make this send as a text
 
-	def send_down_message(self, downtime):
-		logging.warning("The server is down???")
+	def send_down_message(self):
+		logging.warning(f'Server offline - Downtime: {self.server_downtime / 3600:.1f} hrs')
 		# TODO make this send as a text

@@ -1,6 +1,6 @@
 from server_checker import *
 logging.info('Starting server down notifier program')
 
-checker = Checker()
+checker = Checker()  # checker will automatically initialize itself
 
-logging.info('Exiting server down notifier')
+logging.error('Exiting server down notifier')
