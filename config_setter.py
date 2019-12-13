@@ -1,8 +1,11 @@
 from configparser import ConfigParser
+import os
+import sys
 
+os.chdir(os.path.dirname(sys.argv[0]))
 CONFIG_NAME = 'config.ini'
 config = ConfigParser()
-config.read(CONFIG_NAME)
+config.read(os.path.join(os.getcwd(), CONFIG_NAME))
 
 server_address = config.get('setup', 'server_address')
 server_port = config.getint('setup', 'server_port')
