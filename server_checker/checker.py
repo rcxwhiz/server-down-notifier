@@ -14,19 +14,18 @@ class Checker:
 	def __init__(self):
 		self.player_summary = {}
 		self.server = MinecraftServer(cfg.server_url)
+		self.status = -cfg.check_interval
+		self.server_uptime = 0
 		logging.info('Initializing checker')
 		cfg.up_text_interval *= 60
 		cfg.down_text_interval *= 60
 		cfg.check_interval *= 60
-		if self.check_server_up():
-			self.up_loop()
-		else:
-			self.down_loop()
+		self.up_loop()
 
 	def check_server_up(self):
-		logging.debug('Attempting to contact server')
+		logging.info('Attempting to contact server')
 		try:
-			status = self.server.status(cfg.fails_required)
+			self.status = self.server.status(cfg.fails_required)
 		except socket.timeout:
 			logging.debug('Attempt to contact server timed out')
 			return False
@@ -37,6 +36,19 @@ class Checker:
 			logging.info('There server responded but not with info')
 			return False
 		logging.debug('Contact with server successful')
+
+		current_players = []
+		for player_ob in self.status.players.sample:
+			current_players.append(player_ob.name)
+
+		for player in current_players:
+			if player not in self.player_summary.keys():
+				self.player_summary[player] = cfg.check_interval / 2
+			else:
+				self.player_summary[player] += cfg.check_interval
+
+		self.server_uptime += cfg.check_interval
+
 		return True
 
 	def up_loop(self):
@@ -61,15 +73,13 @@ class Checker:
 			time_since_message += cfg.check_interval
 
 	def down_loop(self):
+		self.player_summary = {}
+		self.server_uptime = 0
 		time_since_message = cfg.down_text_interval + 1
 		downtime = 0
 
 		logging.debug('Entering down loop')
 		while True:
-			if self.check_server_up():
-				self.up_loop()
-				return None
-
 			if time_since_message > cfg.down_text_interval:
 				self.send_down_message(downtime)
 				time_since_message = 0
@@ -80,11 +90,17 @@ class Checker:
 			if cfg.down_text_interval > 0:
 				time_since_message += cfg.check_interval
 
-	def send_up_message(self, uptime, player_list):
-		logging.info("The server is up???")
+			if self.check_server_up():
+				self.up_loop()
+				return None
 
-	# TODO make this send as a text
+	def send_up_message(self, uptime, player_list):
+		logging.info(f'Server online - Uptime: {self.server_uptime / 3600:.1f} hrs')
+		logging.info('Players online:')
+		for player in self.player_summary.keys():
+			logging.info(f'{player}: {self.player_summary[player] / 3600:.1f} hrs')
+		# TODO make this send as a text
 
 	def send_down_message(self, downtime):
 		logging.warning("The server is down???")
-	# TODO make this send as a text
+		# TODO make this send as a text
