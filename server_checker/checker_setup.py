@@ -18,4 +18,4 @@ coloredlogs.DEFAULT_FIELD_STYLES = {
 	'name': {'color': 'blue'},
 	'programname': {'color': 'cyan'}
 	}
-coloredlogs.install(level=cfg.logging_level)
+coloredlogs.install(level=cfg.logging_level, datefmt='%I:%M:%S %p')

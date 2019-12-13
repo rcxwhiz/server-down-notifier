@@ -9,9 +9,9 @@ checker = Checker(email_password)
 
 while True:
 	command = input()
-	checker.command(command)
 	if command == 'stop':
 		break
+	checker.command(command)
 
 logging.warning('Exiting server down notifier')
 os._exit(0)
