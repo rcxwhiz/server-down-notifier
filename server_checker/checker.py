@@ -61,7 +61,7 @@ class Checker:
 		return True
 
 	def up_loop(self):
-		time_since_message = cfg.up_text_interval + 1
+		time_since_message = cfg.up_text_interval
 		self.server_downtime = 0
 
 		logging.debug('Entering up_loop')
@@ -70,7 +70,7 @@ class Checker:
 				self.down_loop()
 				return None
 
-			if (not cfg.up_text_interval == 0) and (time_since_message > cfg.up_text_interval):
+			if (not cfg.up_text_interval == 0) and (time_since_message >= cfg.up_text_interval):
 				self.send_up_message()
 				time_since_message = 0
 				logging.debug(f'Waiting {cfg.up_text_interval / 60:.1f} mins to send up message again')
@@ -83,11 +83,11 @@ class Checker:
 	def down_loop(self):
 		self.player_summary = {}
 		self.server_uptime = 0
-		time_since_message = cfg.down_text_interval + 1
+		time_since_message = cfg.down_text_interval
 
 		logging.debug('Entering down loop')
 		while True:
-			if time_since_message > cfg.down_text_interval:
+			if time_since_message >= cfg.down_text_interval:
 				self.send_down_message()
 				time_since_message = 0
 				logging.debug(f'Waiting {cfg.down_text_interval / 60:.1f} mins to send down message again')
