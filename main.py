@@ -6,6 +6,7 @@ email_password = getpass(f'Please enter the password for {cfg.email_address}: ')
 logging.info('Starting server down notifier program')
 
 checker = Checker(email_password)
+del email_password
 
 while True:
 	command = input()

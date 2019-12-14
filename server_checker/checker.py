@@ -6,20 +6,22 @@ class Checker:
 	def __init__(self, email_password_in):
 		logging.debug('Initializing checker')
 
-		self.email_pswd = email_password_in
-		self.player_summary = {}
-		self.pings = []
+		self.yag = yagmail.SMTP(cfg.email_address, email_password_in)
 		self.server = MinecraftServer(cfg.server_address, port=cfg.server_port)
-		self.status = 0
-		self.server_uptime = 0
-		self.server_downtime = 0
+		self.checker_timer = threading.Timer(1, self.up_loop)
+
 		cfg.up_text_interval *= 60
 		cfg.down_text_interval *= 60
 		cfg.check_interval *= 60
+		self.player_summary = {}
+		self.pings = []
+		self.status = 0
+		self.server_uptime = 0
+		self.server_downtime = 0
 		self.time_since_message = cfg.up_text_interval
-		self.checker_timer = threading.Timer(1, self.up_loop)
 		self.when_timer_set = 0
 		self.server_up = True
+
 		self.up_loop()
 
 	def command(self, command):
@@ -36,58 +38,77 @@ class Checker:
 			'debug level critical',
 			'set status interval',
 			'set up text interval',
-			'set down text interval'
+			'set down text interval',
+			'stop'
 		]
+
 		if command not in commands:
 			logging.error(f'Command not found in {commands}')
+
 		elif command == commands[0]:
 			if self.server_up:
 				self.log_up_message()
 			else:
 				self.log_down_message()
+
 		elif command == commands[1]:
 			if self.server_up:
 				self.send_up_message()
 			else:
 				self.send_down_message()
+
 		elif command == commands[2]:
 			self.check_server_up()
+
 		elif command == commands[3]:
 			if self.server_up:
 				number = cfg.up_text_interval - self.time_since_message - (time.time() - self.when_timer_set)
 			else:
 				number = cfg.down_text_interval - self.time_since_message - (time.time() - self.when_timer_set)
 			logging.info(f'Next text message in {number / 60:.1f} mins')
+
 		elif command == commands[4]:
 			number = cfg.check_interval - (time.time() - self.when_timer_set)
 			logging.info(f'Next contact with server in {number / 60:.1f} mins')
+
 		elif command == commands[5]:
 			logging.getLogger().setLevel(logging.DEBUG)
+
 		elif command == commands[6]:
 			logging.getLogger().setLevel(logging.INFO)
+
 		elif command == commands[7]:
 			logging.getLogger().setLevel(logging.WARNING)
+
 		elif command == commands[8]:
 			logging.getLogger().setLevel(logging.ERROR)
+
 		elif command == commands[9]:
 			logging.getLogger().setLevel(logging.CRITICAL)
+
 		elif command == commands[10]:
-			# TODO update timers here
-			new_interval = float(input('New server contact interval (mins): '))
-			cfg.check_interval = new_interval * 60
-			logging.debug(f'New check interval: {cfg.check_interval / 60:.1f}')
+			cfg.check_interval = float(input('New server contact interval (mins): ')) * 60
+			temp_time = cfg.check_interval - (time.time() - self.when_timer_set)
+			self.checker_timer.cancel()
+			if temp_time > 0:
+				self.checker_timer = threading.Timer(temp_time, self.up_loop)
+				self.checker_timer.start()
+			else:
+				self.up_loop()
+			logging.debug(f'New check interval: {cfg.check_interval / 60:.1f} mins')
+
 		elif command == commands[11]:
 			new_interval = float(input('New up text interval (mins): '))
 			cfg.up_text_interval = new_interval * 60
-			logging.debug(f'New up text interval: {cfg.up_text_interval / 60:.1f}')
+			logging.debug(f'New up text interval: {cfg.up_text_interval / 60:.1f} mins')
+
 		elif command == commands[12]:
 			new_interval = float(input('New down text interval (mins): '))
 			cfg.down_text_interval = new_interval * 60
-			logging.debug(f'New down text interval: {cfg.down_text_interval / 60:.1f}')
+			logging.debug(f'New down text interval: {cfg.down_text_interval / 60:.1f} mins')
 
 	def send_text_yagmail(self, content, subject_in=''):
-		yag = yagmail.SMTP(cfg.email_address, self.email_pswd)
-		yag.send(cfg.sms_gateway, subject_in, content)
+		self.yag.send(cfg.sms_gateway, subject_in, content)
 		format_phone = '(%s) %s-%s' % tuple(re.findall(r'\d{4}$|\d{3}', cfg.sms_gateway[:10]))
 		logging.info(f'Sent text to {format_phone}')
 
@@ -107,6 +128,7 @@ class Checker:
 			logging.warning('The server responded but not with info')
 			self.server_up = False
 			return False
+
 		logging.debug('Contact with server successful')
 		self.server_up = True
 
@@ -191,7 +213,8 @@ class Checker:
 	def send_up_message(self):
 		message_subject = f'Server Status {cfg.server_address}: Online'
 		message = f'[{datetime.now().strftime("%I:%M:%S %p")}]\r'
-		message += f'Uptime: {self.server_uptime / 3600:.1f} hrs\r'
+		message += f'Uptime: {int(self.server_uptime / 86400)} days '
+		message += f'{(self.server_uptime - self.server_uptime % 86400) / 3600:.1f} hrs\r'
 		message += f'Avg ping: {sum(self.pings) / len(self.pings):.0f} ms\r'
 		message += f'Max ping: {max(self.pings):.0f} ms\r'
 		message += f'Last ping: {self.pings[-1]:.0f} ms\r'
@@ -206,5 +229,6 @@ class Checker:
 	def send_down_message(self):
 		message_subject = f'Server {cfg.server_address} Status: Offline!'
 		message = f'[{datetime.now().strftime("%I:%M:%S %p")}]\r'
-		message += f'Downtime: {self.server_downtime / 3600:.1f} hrs'
+		message += f'Downtime: {(self.server_downtime - self.server_downtime % 86400) / 3600:.1f} days '
+		message += f'{self.server_downtime / 3600:.1f} hrs'
 		self.send_text_yagmail(message, message_subject)
