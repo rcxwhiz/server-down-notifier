@@ -10,9 +10,6 @@ class Checker:
 		self.server = MinecraftServer(cfg.server_address, port=cfg.server_port)
 		self.checker_timer = threading.Timer(1, self.up_loop)
 
-		cfg.up_text_interval *= 60
-		cfg.down_text_interval *= 60
-		cfg.check_interval *= 60
 		self.player_summary = {}
 		self.pings = []
 		self.status = 0
