@@ -55,7 +55,7 @@ class Checker:
 				self.send_down_message()
 
 		elif command == commands[2]:
-			self.check_server_up()
+			self.check_server_up(logg=False)
 
 		elif command == commands[3]:
 			if self.server_up:
@@ -85,31 +85,54 @@ class Checker:
 
 		elif command == commands[10]:
 			cfg.check_interval = float(input('New server contact interval (mins): ')) * 60
-			temp_time = cfg.check_interval - (time.time() - self.when_timer_set)
 			self.checker_timer.cancel()
-			if temp_time > 0:
-				self.checker_timer = threading.Timer(temp_time, self.up_loop)
-				self.checker_timer.start()
+
+			to_wait = cfg.check_interval
+			if (cfg.up_text_interval - self.time_since_message) < cfg.check_interval:
+				to_wait = cfg.up_text_interval - self.time_since_message
+			if self.server_up:
+				self.server_uptime += to_wait
+				self.checker_timer = threading.Timer(to_wait, self.up_loop)
 			else:
-				self.up_loop()
-			logging.debug(f'New check interval: {cfg.check_interval / 60:.1f} mins')
+				self.server_downtime += to_wait
+				self.checker_timer = threading.Timer(to_wait, self.down_loop)
+			self.time_since_message += to_wait
+			self.when_timer_set = time.time()
+			self.checker_timer.start()
+
+			self.command('next status')
 
 		elif command == commands[11]:
-			new_interval = float(input('New up text interval (mins): '))
-			cfg.up_text_interval = new_interval * 60
-			logging.debug(f'New up text interval: {cfg.up_text_interval / 60:.1f} mins')
+			# TODO find a way to reload the timer so that the text schedule is proper
+			cfg.up_text_interval = float(input('New up text interval (mins): ')) * 60
+			if cfg.up_text_interval < (cfg.check_interval - (time.time() - self.when_timer_set)) and self.server_up:
+				self.checker_timer.cancel()
+				to_wait = cfg.up_text_interval - self.time_since_message
+				self.server_uptime += to_wait
+				self.checker_timer = threading.Timer(to_wait, self.up_loop)
+				self.time_since_message += to_wait
+				self.when_timer_set = time.time()
+				self.checker_timer.start()
+			self.command('next text')
 
 		elif command == commands[12]:
-			new_interval = float(input('New down text interval (mins): '))
-			cfg.down_text_interval = new_interval * 60
-			logging.debug(f'New down text interval: {cfg.down_text_interval / 60:.1f} mins')
+			cfg.down_text_interval = float(input('New down text interval (mins): ')) * 60
+			if cfg.down_text_interval < (cfg.check_interval - (time.time() - self.when_timer_set)) and not self.server_up:
+				self.checker_timer.cancel()
+				to_wait = cfg.down_text_interval - self.time_since_message
+				self.server_downtime += to_wait
+				self.checker_timer = threading.Timer(to_wait, self.down_loop)
+				self.time_since_message += to_wait
+				self.when_timer_set = time.time()
+				self.checker_timer.start()
+			self.command('next text')
 
 	def send_text_yagmail(self, content, subject_in=''):
 		self.yag.send(cfg.sms_gateway, subject_in, content)
 		format_phone = '(%s) %s-%s' % tuple(re.findall(r'\d{4}$|\d{3}', cfg.sms_gateway[:10]))
 		logging.info(f'Sent text to {format_phone}')
 
-	def check_server_up(self):
+	def check_server_up(self, logg=True):
 		logging.info('Contacting server')
 		try:
 			self.status = self.server.status(cfg.fails_required)
@@ -124,22 +147,24 @@ class Checker:
 		except OSError:
 			logging.warning('The server responded but not with info')
 			self.server_up = False
+			time.sleep(2)
 			return self.check_server_up()
 
 		logging.debug('Contact with server successful')
 		self.server_up = True
 
-		self.pings.append(self.status.latency)
-		if self.status.players.sample is not None:
-			current_players = []
-			for player_ob in self.status.players.sample:
-				current_players.append(player_ob.name)
+		if logg:
+			self.pings.append(self.status.latency)
+			if self.status.players.sample is not None:
+				current_players = []
+				for player_ob in self.status.players.sample:
+					current_players.append(player_ob.name)
 
-			for player in current_players:
-				if player not in self.player_summary.keys():
-					self.player_summary[player] = cfg.check_interval / 2
-				else:
-					self.player_summary[player] += cfg.check_interval
+				for player in current_players:
+					if player not in self.player_summary.keys():
+						self.player_summary[player] = cfg.check_interval / 2
+					else:
+						self.player_summary[player] += cfg.check_interval
 		return True
 
 	def up_loop(self):
