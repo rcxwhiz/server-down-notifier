@@ -124,7 +124,7 @@ class Checker:
 		except OSError:
 			logging.warning('The server responded but not with info')
 			self.server_up = False
-			return False
+			return self.check_server_up()
 
 		logging.debug('Contact with server successful')
 		self.server_up = True
