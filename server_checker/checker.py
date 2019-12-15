@@ -44,6 +44,8 @@ class Checker:
 
 		elif command == commands[0]:
 			if self.server_up:
+				if len(self.pings) == 0:
+					self.check_server_up()
 				self.log_up_message()
 			else:
 				self.log_down_message()
@@ -59,9 +61,9 @@ class Checker:
 
 		elif command == commands[3]:
 			if self.server_up:
-				number = cfg.up_text_interval - self.time_since_message - (time.time() - self.when_timer_set)
+				number = cfg.up_text_interval - self.time_since_message
 			else:
-				number = cfg.down_text_interval - self.time_since_message - (time.time() - self.when_timer_set)
+				number = cfg.down_text_interval - self.time_since_message
 			logging.info(f'Next text message in {number / 60:.1f} mins')
 
 		elif command == commands[4]:
@@ -103,28 +105,15 @@ class Checker:
 			self.command('next status')
 
 		elif command == commands[11]:
-			# TODO find a way to reload the timer so that the text schedule is proper
 			cfg.up_text_interval = float(input('New up text interval (mins): ')) * 60
-			if cfg.up_text_interval < (cfg.check_interval - (time.time() - self.when_timer_set)) and self.server_up:
-				self.checker_timer.cancel()
-				to_wait = cfg.up_text_interval - self.time_since_message
-				self.server_uptime += to_wait
-				self.checker_timer = threading.Timer(to_wait, self.up_loop)
-				self.time_since_message += to_wait
-				self.when_timer_set = time.time()
-				self.checker_timer.start()
+			if self.server_up:
+				self.time_since_message = 0
 			self.command('next text')
 
 		elif command == commands[12]:
 			cfg.down_text_interval = float(input('New down text interval (mins): ')) * 60
-			if cfg.down_text_interval < (cfg.check_interval - (time.time() - self.when_timer_set)) and not self.server_up:
-				self.checker_timer.cancel()
-				to_wait = cfg.down_text_interval - self.time_since_message
-				self.server_downtime += to_wait
-				self.checker_timer = threading.Timer(to_wait, self.down_loop)
-				self.time_since_message += to_wait
-				self.when_timer_set = time.time()
-				self.checker_timer.start()
+			if not self.server_up:
+				self.time_since_message = 0
 			self.command('next text')
 
 	def send_text_yagmail(self, content, subject_in=''):
