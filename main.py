@@ -1,4 +1,4 @@
-import os
+import sys
 from getpass import getpass
 from server_checker import *
 print("Josh's server down notifier - 1.0")
@@ -12,8 +12,9 @@ del email_password
 while True:
 	command = input()
 	if command == 'stop':
+		checker.command(command)
 		break
 	checker.command(command)
 
 logging.warning('Exiting server down notifier')
-os._exit(0)
+sys.exit(0)

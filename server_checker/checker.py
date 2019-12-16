@@ -116,6 +116,9 @@ class Checker:
 				self.time_since_message = 0
 			self.command('next text')
 
+		elif command == commands[13]:
+			self.checker_timer.cancel()
+
 	def send_text_yagmail(self, content, subject_in=''):
 		self.yag.send(cfg.sms_gateway, subject_in, content)
 		format_phone = '(%s) %s-%s' % tuple(re.findall(r'\d{4}$|\d{3}', cfg.sms_gateway[:10]))
