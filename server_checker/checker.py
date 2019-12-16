@@ -1,3 +1,6 @@
+import re
+import yagmail
+
 from server_checker.checker_setup import *
 
 
@@ -7,20 +10,9 @@ class Checker:
 		logging.debug('Initializing checker')
 
 		self.yag = yagmail.SMTP(cfg.email_address, email_password_in)
-		self.server = MinecraftServer(cfg.server_address, port=cfg.server_port)
-		self.checker_timer = threading.Timer(1, self.up_loop)
-
-		self.player_summary = {}
-		self.pings = []
-		self.status = 0
-		self.server_uptime = 0
-		self.server_downtime = 0
-		self.time_since_message = cfg.up_text_interval
-		self.when_text_sent = 0
-		self.when_timer_set = 0
-		self.server_up = True
-
-		self.up_loop()
+		self.server = MServer(cfg.server_address, cfg.server_port)
+		self.text_timer = None
+		self.send_text_yagmail()
 
 	def command(self, command):
 		commands = [
@@ -68,8 +60,8 @@ class Checker:
 			logging.info(f'Next text message in {number / 60:.1f} mins')
 
 		elif command == commands[4]:
-			number = cfg.check_interval - (time.time() - self.when_timer_set)
-			logging.info(f'Next contact with server in {number / 60:.1f} mins')
+			# number = cfg.check_interval - (time.time() - self.when_timer_set)
+			logging.info(f'Next contact with server in {self.checker_timer.remaining() / 60:.1f} mins')
 
 		elif command == commands[5]:
 			logging.getLogger().setLevel(logging.DEBUG)
@@ -88,20 +80,23 @@ class Checker:
 
 		elif command == commands[10]:
 			cfg.check_interval = float(input('New server contact interval (mins): ')) * 60
-			self.checker_timer.cancel()
 
-			to_wait = cfg.check_interval
-			if (cfg.up_text_interval - self.time_since_message) < cfg.check_interval:
-				to_wait = cfg.up_text_interval - self.time_since_message
-			if self.server_up:
-				self.server_uptime += to_wait
-				self.checker_timer = threading.Timer(to_wait, self.up_loop)
-			else:
-				self.server_downtime += to_wait
-				self.checker_timer = threading.Timer(to_wait, self.down_loop)
-			self.time_since_message += to_wait
-			self.when_timer_set = time.time()
-			self.checker_timer.start()
+			self.checker_timer.new_time(cfg.check_interval)
+
+			# self.checker_timer.cancel()
+			#
+			# to_wait = cfg.check_interval
+			# if (cfg.up_text_interval - self.time_since_message) < cfg.check_interval:
+			# 	to_wait = cfg.up_text_interval - self.time_since_message
+			# if self.server_up:
+			# 	self.server_uptime += to_wait
+			# 	self.checker_timer = threading.Timer(to_wait, self.up_loop)
+			# else:
+			# 	self.server_downtime += to_wait
+			# 	self.checker_timer = threading.Timer(to_wait, self.down_loop)
+			# self.time_since_message += to_wait
+			# self.when_timer_set = time.time()
+			# self.checker_timer.start()
 
 			self.command('next status')
 
@@ -120,138 +115,13 @@ class Checker:
 		elif command == commands[13]:
 			self.checker_timer.cancel()
 
-	def send_text_yagmail(self, content, subject_in=''):
+	def send_text_yagmail(self):
+		content, subject_in = self.server.send_message()
 		self.yag.send(cfg.sms_gateway, subject_in, content)
 		format_phone = '(%s) %s-%s' % tuple(re.findall(r'\d{4}$|\d{3}', cfg.sms_gateway[:10]))
 		logging.info(f'Sent text to {format_phone}')
 
-	def check_server_up(self, logg=True):
-		logging.info('Contacting server')
-		try:
-			self.status = self.server.status(cfg.fails_required)
-		except socket.timeout:
-			logging.debug('Attempt to contact server timed out')
-			self.server_up = False
-			return False
-		except socket.gaierror:
-			logging.critical('Unable to resolve server address from config')
-			self.server_up = False
-			return False
-		except OSError:
-			logging.warning('The server responded but not with info')
-			self.server_up = False
-			time.sleep(2)
-			return self.check_server_up()
-
-		logging.debug('Contact with server successful')
-		self.server_up = True
-
-		if logg:
-			self.pings.append(self.status.latency)
-			if self.status.players.sample is not None:
-				current_players = []
-				for player_ob in self.status.players.sample:
-					current_players.append(player_ob.name)
-
-				for player in current_players:
-					if player not in self.player_summary.keys():
-						self.player_summary[player] = cfg.check_interval / 2
-					else:
-						self.player_summary[player] += cfg.check_interval
-		return True
-
-	def up_loop(self):
-		if not self.check_server_up():
-			self.checker_timer.cancel()
-			self.player_summary = {}
-			self.pings = []
-			self.server_uptime = 0
-			self.time_since_message = cfg.down_text_interval
-
-			logging.debug('Entering down loop')
-			self.down_loop()
-			return None
-
-		if (not cfg.up_text_interval == 0) and (self.time_since_message >= cfg.up_text_interval):
-			self.log_up_message()
-			self.send_up_message()
-			self.time_since_message = 0
-			self.player_summary = {}
-			self.pings = []
-			logging.debug(f'Waiting {cfg.up_text_interval / 60:.1f} mins to send up message again')
-
-		to_wait = cfg.check_interval
-		if (cfg.up_text_interval - self.time_since_message) < cfg.check_interval:
-			to_wait = cfg.up_text_interval - self.time_since_message
-		logging.debug(f'Waiting {to_wait / 60:.1f} mins to check server again')
-		self.time_since_message += to_wait
-		self.server_uptime += to_wait
-		self.when_timer_set = time.time()
-		self.checker_timer = threading.Timer(to_wait, self.up_loop)
-		self.checker_timer.start()
-
-	def down_loop(self):
-		if self.time_since_message >= cfg.down_text_interval:
-			self.send_down_message()
-			self.time_since_message = 0
-			logging.debug(f'Waiting {cfg.down_text_interval / 60:.1f} mins to send down message again')
-
-		to_wait = cfg.check_interval
-		if (cfg.down_text_interval - self.time_since_message) < cfg.check_interval:
-			to_wait = cfg.down_text_interval - self.time_since_message
-		logging.debug(f'Waiting {to_wait / 60:.1f} mins to check server again')
-		if cfg.down_text_interval > 0:
-			self.time_since_message += to_wait
-		self.server_downtime += to_wait
-		self.when_timer_set = time.time()
-		self.checker_timer = threading.Timer(to_wait, self.down_loop)
-		self.checker_timer.start()
-
-		if self.check_server_up():
-			self.checker_timer.cancel()
-			self.time_since_message = cfg.up_text_interval
-			self.server_downtime = 0
-
-			logging.debug('Entering up_loop')
-			self.up_loop()
-			return None
-
-	def log_up_message(self):
-		logging.info(f'Server {cfg.server_address} online - Uptime: {self.server_uptime / 3600:.1f} hrs')
-		logging.info(f'Avg ping: {sum(self.pings) / len(self.pings):.0f} ms')
-		logging.info(f'Max ping: {max(self.pings):.0f} ms')
-		logging.info(f'Last ping: {self.pings[-1]:.0f} ms')
-		logging.info('Players online:')
-		if len(self.player_summary.keys()) == 0:
-			logging.info('None')
+		if self.server.online():
+			self.text_timer = PTimer(cfg.up_text_interval, self.text_timer)
 		else:
-			for player in self.player_summary.keys():
-				logging.info(f'{player}: {self.player_summary[player] / 3600:.1f} hrs')
-
-	def send_up_message(self):
-		message_subject = f'Server Status {cfg.server_address}: Online'
-		message = f'[{datetime.now().strftime("%I:%M:%S %p")}]\r'
-		message += f'Uptime: {int(self.server_uptime / 86400)} days '
-		message += f'{(self.server_uptime - self.server_uptime % 86400) / 3600:.1f} hrs\r'
-		message += f'Avg ping: {sum(self.pings) / len(self.pings):.0f} ms\r'
-		message += f'Max ping: {max(self.pings):.0f} ms\r'
-		message += f'Last ping: {self.pings[-1]:.0f} ms\r'
-		message += 'Players online:'
-		if len(self.player_summary.keys()) == 0:
-			message += '\rNone'
-		else:
-			for player in self.player_summary.keys():
-				message += f'\r{player}: {self.player_summary[player] / 3600:.1f} hrs'
-		self.send_text_yagmail(message, message_subject)
-		self.when_text_sent = time.time()
-
-	def log_down_message(self):
-		logging.warning(f'Server {cfg.server_address} offline - Downtime: {self.server_downtime / 3600:.1f} hrs')
-
-	def send_down_message(self):
-		message_subject = f'Server {cfg.server_address} Status: Offline!'
-		message = f'[{datetime.now().strftime("%I:%M:%S %p")}]\r'
-		message += f'Downtime: {(self.server_downtime - self.server_downtime % 86400) / 3600:.1f} days '
-		message += f'{self.server_downtime / 3600:.1f} hrs'
-		self.send_text_yagmail(message, message_subject)
-		self.when_text_sent = time.time()
+			self.text_timer = PTimer(cfg.down_text_interval)
