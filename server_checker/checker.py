@@ -16,6 +16,7 @@ class Checker:
 		self.server_uptime = 0
 		self.server_downtime = 0
 		self.time_since_message = cfg.up_text_interval
+		self.when_text_sent = 0
 		self.when_timer_set = 0
 		self.server_up = True
 
@@ -61,9 +62,9 @@ class Checker:
 
 		elif command == commands[3]:
 			if self.server_up:
-				number = cfg.up_text_interval - self.time_since_message
+				number = cfg.up_text_interval - (time.time() - self.when_text_sent)
 			else:
-				number = cfg.down_text_interval - self.time_since_message
+				number = cfg.down_text_interval - (time.time() - self.when_text_sent)
 			logging.info(f'Next text message in {number / 60:.1f} mins')
 
 		elif command == commands[4]:
@@ -221,8 +222,11 @@ class Checker:
 		logging.info(f'Max ping: {max(self.pings):.0f} ms')
 		logging.info(f'Last ping: {self.pings[-1]:.0f} ms')
 		logging.info('Players online:')
-		for player in self.player_summary.keys():
-			logging.info(f'{player}: {self.player_summary[player] / 3600:.1f} hrs')
+		if len(self.player_summary.keys()) == 0:
+			logging.info('None')
+		else:
+			for player in self.player_summary.keys():
+				logging.info(f'{player}: {self.player_summary[player] / 3600:.1f} hrs')
 
 	def send_up_message(self):
 		message_subject = f'Server Status {cfg.server_address}: Online'
@@ -233,9 +237,13 @@ class Checker:
 		message += f'Max ping: {max(self.pings):.0f} ms\r'
 		message += f'Last ping: {self.pings[-1]:.0f} ms\r'
 		message += 'Players online:'
-		for player in self.player_summary.keys():
-			message += f'\r{player}: {self.player_summary[player] / 3600:.1f} hrs'
+		if len(self.player_summary.keys()) == 0:
+			message += '\rNone'
+		else:
+			for player in self.player_summary.keys():
+				message += f'\r{player}: {self.player_summary[player] / 3600:.1f} hrs'
 		self.send_text_yagmail(message, message_subject)
+		self.when_text_sent = time.time()
 
 	def log_down_message(self):
 		logging.warning(f'Server {cfg.server_address} offline - Downtime: {self.server_downtime / 3600:.1f} hrs')
@@ -246,3 +254,4 @@ class Checker:
 		message += f'Downtime: {(self.server_downtime - self.server_downtime % 86400) / 3600:.1f} days '
 		message += f'{self.server_downtime / 3600:.1f} hrs'
 		self.send_text_yagmail(message, message_subject)
+		self.when_text_sent = time.time()

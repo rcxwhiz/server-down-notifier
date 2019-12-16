@@ -16,5 +16,5 @@ while True:
 		break
 	checker.command(command)
 
-logging.warning('Exiting server down notifier')
+logging.info('Exiting server down notifier')
 sys.exit(0)
