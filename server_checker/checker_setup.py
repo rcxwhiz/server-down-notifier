@@ -71,17 +71,17 @@ class MServer:
 		self.update_timer = None
 		self.message_timer = None
 		self.current_message_interval = None
-		self.last_status = None
-		self.uptime = 0
-		self.downtime = 0
+		self.uptime = []
+		self.downtime = []
 		self.player_summary = {}
 		self.pings = []
 
 		self.send_message()
+		self.last_status = self.update(log=False)
 		self.loop()
 
 	def loop(self):
-		if not (self.update() == self.last_status):
+		if not (self.update() == self.online()):
 			self.message_timer.cancel()
 			self.send_message()
 			if self.online():
@@ -96,27 +96,27 @@ class MServer:
 		try:
 			self.last_status = self.int_server.status(cfg.fails_required)
 		except socket.timeout:
-			self.uptime = 0
-			self.downtime += cfg.check_interval
+			self.uptime = []
+			self.downtime.append(time.time())
 			logging.info('Attempt to contact server timed out')
 			self.last_status = False
 			return False
 		except socket.gaierror:
-			self.uptime = 0
-			self.downtime += cfg.check_interval
+			self.uptime = []
+			self.downtime.append(time.time())
 			logging.critical('Unable to resolve server address from config')
 			self.last_status = False
 			return False
 		except OSError:
-			self.uptime = 0
-			self.downtime += cfg.check_interval
+			self.uptime = []
+			self.downtime.append(time.time())
 			logging.warning('The server responded but not with info')
 			self.last_status = False
 			time.sleep(2)
 			return self.update()
 
-		self.uptime += cfg.check_interval
-		self.downtime = 0
+		self.uptime.append(time.time())
+		self.downtime = []
 		logging.debug('Contact with server successful')
 
 		if log:
@@ -131,7 +131,8 @@ class MServer:
 
 				for player in current_players:
 					if player not in self.player_summary.keys():
-						self.player_summary[player] = {'online': True, 'time': time.time()}
+						self.player_summary[player] = []
+						self.player_summary[player].append({'online': True, 'time': time.time()})
 		return True
 
 	def send_message(self, console=True, text=True, update_before=True):
@@ -144,7 +145,7 @@ class MServer:
 				self.log_up_message()
 			if text:
 				message, message_subject = self.text_up_message()
-				self.yag.send(cfg.sms_gateway, message, message_subject)
+				self.yag.send(cfg.sms_gateway, message_subject, message)
 				format_phone = '(%s) %s-%s' % tuple(re.findall(r'\d{4}$|\d{3}', cfg.sms_gateway[:10]))
 				logging.info(f'Sent text to {format_phone}')
 		else:
@@ -153,7 +154,7 @@ class MServer:
 				self.log_down_message()
 			if text:
 				message, message_subject = self.text_down_message()
-				self.yag.send(cfg.sms_gateway, message, message_subject)
+				self.yag.send(cfg.sms_gateway, message_subject, message)
 				format_phone = '(%s) %s-%s' % tuple(re.findall(r'\d{4}$|\d{3}', cfg.sms_gateway[:10]))
 				logging.info(f'Sent text to {format_phone}')
 
@@ -165,6 +166,8 @@ class MServer:
 		return self.last_status is not False
 
 	def get_avg_ping(self):
+		if len(self.pings) == 1:
+			return self.pings[0]['ping']
 		total = 0
 		for i in range(len(self.pings) - 1):
 			total += self.pings[i]['ping'] * (self.pings[i + 1]['time'] - self.pings[i]['time'])
@@ -177,11 +180,23 @@ class MServer:
 				total += self.player_summary[player][i + 1]['time'] - self.player_summary[player][i]['time']
 		return total / (self.player_summary[player][-1]['time'] - self.player_summary[player][0]['time'])
 
+	def get_max_ping(self):
+		temp_pings = []
+		for point in self.pings:
+			temp_pings.append(point['ping'])
+		return max(temp_pings)
+
+	def get_uptime(self):
+		return self.uptime[-1] - self.uptime[0]
+
+	def get_downtime(self):
+		return self.downtime[-1] - self.downtime[0]
+
 	def log_up_message(self):
-		logging.info(f'Server {self.address} online - Uptime: {self.uptime / 3600:.1f} hrs')
+		logging.info(f'Server {self.address} online - Uptime: {self.get_uptime() / 3600:.1f} hrs')
 		logging.info(f'Avg ping: {self.get_avg_ping():.0f} ms')
-		logging.info(f'Max ping: {max(self.pings[:][0]):.0f} ms')
-		logging.info(f'Last ping: {self.pings[-1][0]:.0f} ms')
+		logging.info(f'Max ping: {self.get_max_ping():.0f} ms')
+		logging.info(f'Last ping: {self.pings[-1]["ping"]:.0f} ms')
 		logging.info('Players online:')
 		if len(self.player_summary.keys()) == 0:
 			logging.info('None')
@@ -190,16 +205,16 @@ class MServer:
 				logging.info(f'{player}: {self.get_player_time(player) / 3600:.1f} hrs')
 
 	def log_down_message(self):
-		logging.warning(f'Server {self.address} offline - Downtime: {self.downtime / 3600:.1f} hrs')
+		logging.warning(f'Server {self.address} offline - Downtime: {self.get_downtime() / 3600:.1f} hrs')
 
 	def text_up_message(self):
 		message_subject = f'Server Status {cfg.server_address}: Online'
 		message = f'[{datetime.now().strftime("%I:%M:%S %p")}]\r'
-		message += f'Uptime: {int(self.uptime / 86400)} days '
-		message += f'{(self.uptime - self.uptime % 86400) / 3600:.1f} hrs\r'
+		message += f'Uptime: {int(self.get_uptime() / 86400)} days '
+		message += f'{(self.get_uptime() - self.get_uptime() % 86400) / 3600:.1f} hrs\r'
 		message += f'Avg ping: {self.get_avg_ping():.0f} ms\r'
-		message += f'Max ping: {max(self.pings):.0f} ms\r'
-		message += f'Last ping: {self.pings[-1]:.0f} ms\r'
+		message += f'Max ping: {self.get_max_ping():.0f} ms\r'
+		message += f'Last ping: {self.pings[-1]["ping"]:.0f} ms\r'
 		message += 'Players online:'
 		if len(self.player_summary.keys()) == 0:
 			message += '\rNone'
@@ -211,6 +226,6 @@ class MServer:
 	def text_down_message(self):
 		message_subject = f'Server {cfg.server_address} Status: Offline!'
 		message = f'[{datetime.now().strftime("%I:%M:%S %p")}]\r'
-		message += f'Downtime: {(self.downtime - self.downtime % 86400) / 3600:.1f} days '
-		message += f'{self.downtime / 3600:.1f} hrs'
+		message += f'Downtime: {(self.get_downtime() - self.get_downtime() % 86400) / 3600:.1f} days '
+		message += f'{self.get_downtime() / 3600:.1f} hrs'
 		return message, message_subject
