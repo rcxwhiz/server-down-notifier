@@ -1,7 +1,7 @@
 import sys
 from getpass import getpass
 from server_checker import *
-print("Josh's server down notifier - 1.0")
+print("Josh's server down notifier - 2.0")
 email_password = getpass(f'Please enter the password for {cfg.email_address}: ')
 
 logging.info('Starting server down notifier program')

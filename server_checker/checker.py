@@ -80,5 +80,5 @@ class Checker:
 			self.command('next text')
 
 		elif command == commands[13]:
-			self.server.message_timer.cancel()
-			self.server.update_timer.cancel()
+			self.server.message_timer.delete()
+			self.server.update_timer.delete()

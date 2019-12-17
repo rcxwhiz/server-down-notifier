@@ -58,6 +58,10 @@ class PTimer:
 		if go:
 			self.start()
 
+	def delete(self):
+		self.cancel()
+		del self
+
 
 class MServer:
 
@@ -134,6 +138,7 @@ class MServer:
 					if player not in self.player_summary.keys():
 						self.player_summary[player] = []
 						self.player_summary[player].append({'online': True, 'time': time.time()})
+		self.last_status = True
 		return True
 
 	def send_message(self, console=True, text=True, update_before=True):
@@ -211,8 +216,8 @@ class MServer:
 	def text_up_message(self):
 		message_subject = f'Server Status {cfg.server_address}: Online'
 		message = f'[{datetime.now().strftime("%I:%M:%S %p")}]\r'
-		message += f'Uptime: {int(self.get_uptime() / 86400)} days '
-		message += f'{(self.get_uptime() - self.get_uptime() % 86400) / 3600:.1f} hrs\r'
+		message += f'Uptime: {int((self.get_uptime() - (self.get_uptime() % 86400)) / 86400)} days '
+		message += f'{(self.get_uptime() % 86400) / 3600:.1f} hrs\r'
 		message += f'Avg ping: {self.get_avg_ping():.0f} ms\r'
 		message += f'Max ping: {self.get_max_ping():.0f} ms\r'
 		message += f'Last ping: {self.pings[-1]["ping"]:.0f} ms\r'
