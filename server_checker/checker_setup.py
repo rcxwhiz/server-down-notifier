@@ -83,10 +83,11 @@ class MServer:
 
 		self.send_message()
 		self.last_status = self.update(log=False)
+		self.previous_update = self.last_status
 		self.loop()
 
 	def loop(self):
-		if not (self.update() == self.online()):
+		if not (self.update() == self.previous_update):
 			self.message_timer.cancel()
 			self.send_message()
 			if self.online():
@@ -95,6 +96,7 @@ class MServer:
 				self.current_message_interval = cfg.down_text_interval
 			self.message_timer = PTimer(self.current_message_interval, self.send_message)
 		self.update_timer = PTimer(cfg.check_interval, self.loop)
+		self.previous_update = self.online()
 
 	def update(self, log=True):
 		logging.info(f'Contacting Server {self.address}')
