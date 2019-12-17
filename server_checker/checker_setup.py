@@ -52,7 +52,8 @@ class PTimer:
 		return time.time() - self.time_started
 
 	def new_time(self, new_time_in, go=True):
-		self.cancel()
+		self.int_timer.cancel()
+		self.interval = new_time_in
 		self.int_timer = threading.Timer(new_time_in, self.func, self.arg)
 		if go:
 			self.start()
