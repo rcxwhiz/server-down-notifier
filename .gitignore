@@ -139,3 +139,4 @@ dmypy.json
 out
 gen
 /my_start.bat
+/config.ini
