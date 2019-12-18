@@ -1,6 +1,8 @@
+import logging
 import yagmail
 
 from server_checker.checker_setup import *
+from server_checker.m_server import MServer
 
 
 class Checker:
