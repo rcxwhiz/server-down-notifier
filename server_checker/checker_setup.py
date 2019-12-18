@@ -81,9 +81,9 @@ class MServer:
 		self.player_summary = {}
 		self.pings = []
 
+		self.last_status = None
 		self.send_message()
-		self.last_status = self.update(log=False)
-		self.previous_update = self.last_status
+		self.previous_update = self.online()
 		self.loop()
 
 	def loop(self):
@@ -98,7 +98,7 @@ class MServer:
 		self.update_timer = PTimer(cfg.check_interval, self.loop)
 		self.previous_update = self.online()
 
-	def update(self, log=True):
+	def update(self, log=True, retries=0):
 		logging.info(f'Contacting Server {self.address}')
 		try:
 			self.last_status = self.int_server.status(cfg.fails_required)
@@ -118,9 +118,12 @@ class MServer:
 			self.uptime = []
 			self.downtime.append(time.time())
 			logging.warning('The server responded but not with info')
-			self.last_status = False
 			time.sleep(2)
-			return self.update()
+			self.last_status = False
+			if retries < 3:
+				return self.update(retries=retries + 1)
+			else:
+				return False
 
 		self.uptime.append(time.time())
 		self.downtime = []
@@ -140,7 +143,6 @@ class MServer:
 					if player not in self.player_summary.keys():
 						self.player_summary[player] = []
 						self.player_summary[player].append({'online': True, 'time': time.time()})
-		self.last_status = True
 		return True
 
 	def send_message(self, console=True, text=True, update_before=True):
@@ -201,7 +203,7 @@ class MServer:
 		return self.downtime[-1] - self.downtime[0]
 
 	def log_up_message(self):
-		logging.info(f'Server {self.address} online - Uptime: {self.get_uptime() / 3600:.1f} hrs')
+		logging.info(f'{self.address} online - Uptime: {self.get_uptime() / 3600:.1f} hrs')
 		logging.info(f'Avg ping: {self.get_avg_ping():.0f} ms')
 		logging.info(f'Max ping: {self.get_max_ping():.0f} ms')
 		logging.info(f'Last ping: {self.pings[-1]["ping"]:.0f} ms')
@@ -213,10 +215,10 @@ class MServer:
 				logging.info(f'{player}: {self.get_player_time(player) / 3600:.1f} hrs')
 
 	def log_down_message(self):
-		logging.warning(f'Server {self.address} offline - Downtime: {self.get_downtime() / 3600:.1f} hrs')
+		logging.warning(f'{self.address} offline - Downtime: {self.get_downtime() / 3600:.1f} hrs')
 
 	def text_up_message(self):
-		message_subject = f'Server Status {cfg.server_address}: Online'
+		message_subject = f'Status {cfg.server_address}: Online'
 		message = f'[{datetime.now().strftime("%I:%M:%S %p")}]\r'
 		message += f'Uptime: {int((self.get_uptime() - (self.get_uptime() % 86400)) / 86400)} days '
 		message += f'{(self.get_uptime() % 86400) / 3600:.1f} hrs\r'
@@ -232,7 +234,7 @@ class MServer:
 		return message, message_subject
 
 	def text_down_message(self):
-		message_subject = f'Server {cfg.server_address} Status: Offline!'
+		message_subject = f'{cfg.server_address} Status: Offline!'
 		message = f'[{datetime.now().strftime("%I:%M:%S %p")}]\r'
 		message += f'Downtime: {(self.get_downtime() - self.get_downtime() % 86400) / 3600:.1f} days '
 		message += f'{self.get_downtime() / 3600:.1f} hrs'
