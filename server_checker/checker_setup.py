@@ -89,7 +89,7 @@ class MServer:
 	def loop(self):
 		if not (self.update() == self.previous_update):
 			self.message_timer.cancel()
-			self.send_message()
+			self.send_message(update_before=False)
 			if self.online():
 				self.current_message_interval = cfg.up_text_interval
 			else:
