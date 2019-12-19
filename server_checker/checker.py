@@ -16,7 +16,7 @@ class Checker:
 
 		yag_server = yagmail.SMTP(cfg.email_address, email_password_in)
 		try:
-			yag_server.send(cfg.sms_gateway, 'Python MCStatus', f'Start monitoring {cfg.server_address}\r'
+			yag_server.send(cfg.sms_gateway, 'Python MCStatus', f'Started monitoring {cfg.server_address}\r'
 			                                                    f'[{datetime.now().strftime("%I:%M:%S %p")}]')
 			format_phone = '(%s) %s-%s' % tuple(re.findall(r'\d{4}$|\d{3}', cfg.sms_gateway[:10]))
 			logging.info(f'Sent text to {format_phone}')

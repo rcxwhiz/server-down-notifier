@@ -17,4 +17,4 @@ logging_level = config.get('setup', 'logging_level')
 fails_required = config.getint('preferrences', 'fails_required')
 down_text_interval = config.getfloat('preferrences', 'down_text_interval') * 60
 up_text_interval = config.getfloat('preferrences', 'up_text_interval') * 60
-try_player_log = config.getboolean('preferences', 'try_player_log')
+try_player_log = config.getboolean('preferrences', 'try_player_log')

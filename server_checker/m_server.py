@@ -79,7 +79,7 @@ class MServer:
 		logging.debug('Contact with server successful')
 
 		if self.description is None:
-			self.description = self.last_status.description['text']
+			self.description = self.last_status.description
 			self.max_players = self.last_status.players.max
 			self.num_mods = len(self.last_status.raw['modinfo']['modList'])
 			self.version = self.last_status.version.name
