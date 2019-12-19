@@ -146,28 +146,24 @@ class MServer:
 		if self.online():
 			if console:
 				self.log_up_message()
-			if text:
-				message, message_subject = self.text_up_message()
-				self.yag.send(cfg.sms_gateway, message_subject, message)
-				format_phone = '(%s) %s-%s' % tuple(re.findall(r'\d{4}$|\d{3}', cfg.sms_gateway[:10]))
-				logging.info(f'Sent text to {format_phone}')
-			# sets a timer for the next message if the config says to
-			if cfg.up_text_interval > 0:
-				self.message_timer = PTimer(cfg.up_text_interval, self.send_message)
-				logging.debug(f'Next text scheduled in {cfg.up_text_interval / 60:.1f} mins')
+			message, message_subject = self.text_up_message()
+			next_message = cfg.up_text_interval
 
 		else:
 			if console:
 				self.log_down_message()
-			if text:
-				message, message_subject = self.text_down_message()
-				self.yag.send(cfg.sms_gateway, message_subject, message)
-				format_phone = '(%s) %s-%s' % tuple(re.findall(r'\d{4}$|\d{3}', cfg.sms_gateway[:10]))
-				logging.info(f'Sent text to {format_phone}')
-			# sets a timer for the next message if the config says to
-			if cfg.down_text_interval > 0:
-				self.message_timer = PTimer(cfg.down_text_interval, self.send_message)
-				logging.debug(f'Next text scheduled in {cfg.down_text_interval / 60:.1f} mins')
+			message, message_subject = self.text_down_message()
+			next_message = cfg.up_text_interval
+
+		if text:
+			if self.message_timer.int_timer.is_alive():
+				self.message_timer.cancel()
+			self.yag.send(cfg.sms_gateway, message_subject, message)
+			format_phone = '(%s) %s-%s' % tuple(re.findall(r'\d{4}$|\d{3}', cfg.sms_gateway[:10]))
+			logging.info(f'Sent text to {format_phone}')
+			if next_message > 0:
+				self.message_timer = PTimer(next_message, self.send_message)
+				logging.debug(f'Next text scheduled in {self.message_timer.remaining() / 60:.1f} mins')
 
 		# clears out temporary data once message is sent
 		self.player_summary = {}
