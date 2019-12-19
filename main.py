@@ -9,6 +9,7 @@ print('')
 
 logging.info('Starting server down notifier')
 checker = sc.Checker(email_password)
+# delete password from memory
 del email_password
 
 while True:

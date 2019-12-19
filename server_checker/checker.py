@@ -25,10 +25,11 @@ class Checker:
 			sys.exit(0)
 		self.server = MServer(cfg.server_address, cfg.server_port, yag_server)
 
+	# lots of commands that can interact with the MServer object
 	def command(self, command):
 		commands = [
 			'print status',
-			'print server info',
+			'server info',
 			'send text',
 			'update',
 			'next text',

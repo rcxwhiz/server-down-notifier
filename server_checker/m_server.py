@@ -1,6 +1,7 @@
 import logging
 import time
 import socket
+import sys
 import re
 
 from p_timer import *
@@ -35,15 +36,21 @@ class MServer:
 
 		self.last_status = None
 
+		# send a first message
+		# this will auto update the server to populate initial info
 		self.send_message()
 
+		# this uses the initial info and starts the loop
 		self.previous_update = self.online()
 		self.loop()
 
 	def loop(self):
+		# checks if the status of the server has changed while triggering an update
 		if not (self.update() == self.previous_update):
 			self.message_timer.cancel()
+			# does not update before message sent because there was just an update
 			self.send_message(update_before=False)
+		# set update timer and previous status
 		self.update_timer = PTimer(cfg.check_interval, self.loop)
 		self.previous_update = self.online()
 
@@ -52,23 +59,24 @@ class MServer:
 		try:
 			self.last_status = self.int_server.status(cfg.fails_required)
 		except socket.timeout:
+			# this is usually what happens when the server is offline
 			self.uptime = []
 			self.downtime.append(time.time())
 			logging.info('Attempt to contact server timed out')
 			self.last_status = False
 			return False
 		except socket.gaierror:
-			self.uptime = []
-			self.downtime.append(time.time())
+			# this is usually what happens when the address is incorrect so the program exits
 			logging.critical('Unable to resolve server address from config')
-			self.last_status = False
-			return False
+			sys.exit(0)
 		except OSError:
+			# this usualyl happens when the server is still loading or overloaded
 			self.uptime = []
 			self.downtime.append(time.time())
 			logging.warning('The server responded but not with info')
 			time.sleep(2)
 			self.last_status = False
+			# this retries the check a few times
 			if retries < 3:
 				return self.update(retries=retries + 1)
 			else:
@@ -78,29 +86,37 @@ class MServer:
 		self.downtime = []
 		logging.debug('Contact with server successful')
 
+		# tests if this is the first successful contact with the server
 		if self.description is None:
-			self.description = self.last_status.description
+			if type(self.last_status.description) is str:
+				self.description = self.last_status.description
+			else:
+				self.description = self.last_status['text']
 			self.max_players = self.last_status.players.max
 			self.num_mods = len(self.last_status.raw['modinfo']['modList'])
 			self.version = self.last_status.version.name
+			# this tests to see if query is enabled and disables player logging if needed
 			try:
 				self.int_server.query()
 				self.query_allowed = True
 			except socket.timeout:
 				self.query_allowed = False
-				logging.error('Query is not allowed on this server so individual players will not be logged')
+				logging.error('Query is not allowed on this server so individual players will not be logged!')
 				cfg.try_player_log = False
+			# after the server info is initially populated it is printed
 			self.print_server_info()
 
+		# if this update is supposed to be logged info is recorded
 		if log:
 			self.pings.append({'ping': self.last_status.latency, 'time': time.time()})
 
 			self.max_online = max(self.max_online, self.last_status.players.online)
 
 			if cfg.try_player_log:
-				if self.last_status.players.names is not None:
+				query = self.int_server.query()
+				if len(query.players.names) > 0:
 					current_players = []
-					for player_ob in self.last_status.players.names:
+					for player_ob in query.players.names:
 						current_players.append(player_ob.name)
 
 					for player in self.player_summary.keys():
@@ -135,6 +151,7 @@ class MServer:
 				self.yag.send(cfg.sms_gateway, message_subject, message)
 				format_phone = '(%s) %s-%s' % tuple(re.findall(r'\d{4}$|\d{3}', cfg.sms_gateway[:10]))
 				logging.info(f'Sent text to {format_phone}')
+			# sets a timer for the next message if the config says to
 			if cfg.up_text_interval > 0:
 				self.message_timer = PTimer(cfg.up_text_interval, self.send_message)
 				logging.debug(f'Next text scheduled in {cfg.up_text_interval / 60:.1f} mins')
@@ -147,15 +164,18 @@ class MServer:
 				self.yag.send(cfg.sms_gateway, message_subject, message)
 				format_phone = '(%s) %s-%s' % tuple(re.findall(r'\d{4}$|\d{3}', cfg.sms_gateway[:10]))
 				logging.info(f'Sent text to {format_phone}')
+			# sets a timer for the next message if the config says to
 			if cfg.down_text_interval > 0:
 				self.message_timer = PTimer(cfg.down_text_interval, self.send_message)
 				logging.debug(f'Next text scheduled in {cfg.down_text_interval / 60:.1f} mins')
 
+		# clears out temporary data once message is sent
 		self.player_summary = {}
 		self.pings = []
 		self.max_online = 0
 
 	def online(self):
+		# my janky way of returning false when the server check fails
 		return self.last_status is not False
 
 	def get_avg_ping(self):
@@ -195,12 +215,12 @@ class MServer:
 		logging.info(f'[SERVER ONLINE] Max players: {self.max_online}/{self.max_players}')
 
 		if cfg.try_player_log:
-			logging.info('Players online:')
+			logging.info('[SERVER ONLINE] Players online:')
 			if len(self.player_summary.keys()) == 0:
-				logging.info('None')
+				logging.info('[SERVER ONLINE] None')
 			else:
 				for player in self.player_summary.keys():
-					logging.info(f'{player}: {self.get_player_time(player) / 3600:.1f} hrs')
+					logging.info(f'[SERVER ONLINE] {player}: {self.get_player_time(player) / 3600:.1f} hrs')
 
 	def log_down_message(self):
 		logging.warning(f'[SERVER OFFLINE] Downtime: {self.get_downtime() / 3600:.1f} hrs')
