@@ -43,14 +43,7 @@ class MServer:
 	def loop(self):
 		if not (self.update() == self.previous_update):
 			self.message_timer.cancel()
-			if self.online():
-				self.send_message(update_before=False)
-				if cfg.up_text_interval > 0:
-					self.message_timer = PTimer(cfg.up_text_interval, self.send_message)
-			elif not self.online():
-				self.send_message(update_before=False)
-				if cfg.down_text_interval > 0:
-					self.message_timer = PTimer(cfg.down_text_interval, self.send_message)
+			self.send_message(update_before=False)
 		self.update_timer = PTimer(cfg.check_interval, self.loop)
 		self.previous_update = self.online()
 
@@ -131,7 +124,6 @@ class MServer:
 			self.update()
 
 		if self.online():
-			next_message = cfg.up_text_interval
 			if console:
 				self.log_up_message()
 			if text:
@@ -139,8 +131,11 @@ class MServer:
 				self.yag.send(cfg.sms_gateway, message_subject, message)
 				format_phone = '(%s) %s-%s' % tuple(re.findall(r'\d{4}$|\d{3}', cfg.sms_gateway[:10]))
 				logging.info(f'Sent text to {format_phone}')
+			if cfg.up_text_interval > 0:
+				self.message_timer = PTimer(cfg.up_text_interval, self.send_message)
+				logging.debug(f'Next text scheduled in {cfg.up_text_interval / 60:.1f} mins')
+
 		else:
-			next_message = cfg.down_text_interval
 			if console:
 				self.log_down_message()
 			if text:
@@ -148,12 +143,13 @@ class MServer:
 				self.yag.send(cfg.sms_gateway, message_subject, message)
 				format_phone = '(%s) %s-%s' % tuple(re.findall(r'\d{4}$|\d{3}', cfg.sms_gateway[:10]))
 				logging.info(f'Sent text to {format_phone}')
+			if cfg.down_text_interval > 0:
+				self.message_timer = PTimer(cfg.down_text_interval, self.send_message)
+				logging.debug(f'Next text scheduled in {cfg.down_text_interval / 60:.1f} mins')
 
 		self.player_summary = {}
 		self.pings = []
 		self.max_online = 0
-		self.message_timer = PTimer(next_message, self.send_message)
-		logging.debug(f'Next text scheduled in {next_message / 60:.1f} mins')
 
 	def online(self):
 		return self.last_status is not False
