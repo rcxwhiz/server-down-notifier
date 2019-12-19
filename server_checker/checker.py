@@ -28,6 +28,7 @@ class Checker:
 	def command(self, command):
 		commands = [
 			'print status',
+			'print server info',
 			'send text',
 			'update',
 			'next text',
@@ -50,49 +51,52 @@ class Checker:
 			self.server.send_message(text=False)
 
 		elif command == commands[1]:
-			self.server.send_message(console=False)
+			self.server.print_server_info()
 
 		elif command == commands[2]:
-			self.server.update()
+			self.server.send_message(console=False)
 
 		elif command == commands[3]:
-			logging.info(f'Next text message in {self.server.message_timer.remaining() / 60:.1f} mins')
+			self.server.update()
 
 		elif command == commands[4]:
-			logging.info(f'Next contact with server in {self.server.update_timer.remaining() / 60:.1f} mins')
+			logging.info(f'Next text message in {self.server.message_timer.remaining() / 60:.1f} mins')
 
 		elif command == commands[5]:
-			logging.getLogger().setLevel(logging.DEBUG)
+			logging.info(f'Next contact with server in {self.server.update_timer.remaining() / 60:.1f} mins')
 
 		elif command == commands[6]:
-			logging.getLogger().setLevel(logging.INFO)
+			logging.getLogger().setLevel(logging.DEBUG)
 
 		elif command == commands[7]:
-			logging.getLogger().setLevel(logging.WARNING)
+			logging.getLogger().setLevel(logging.INFO)
 
 		elif command == commands[8]:
-			logging.getLogger().setLevel(logging.ERROR)
+			logging.getLogger().setLevel(logging.WARNING)
 
 		elif command == commands[9]:
-			logging.getLogger().setLevel(logging.CRITICAL)
+			logging.getLogger().setLevel(logging.ERROR)
 
 		elif command == commands[10]:
+			logging.getLogger().setLevel(logging.CRITICAL)
+
+		elif command == commands[11]:
 			cfg.check_interval = float(input('New server contact interval (mins): ')) * 60
 
 			self.server.update_timer.new_time(cfg.check_interval)
 			self.command('next status')
 
-		elif command == commands[11]:
+		elif command == commands[12]:
 			cfg.up_text_interval = float(input('New up text interval (mins): ')) * 60
 			if self.server.online():
 				self.server.message_timer.new_time(cfg.up_text_interval)
 			self.command('next text')
 
-		elif command == commands[12]:
+		elif command == commands[13]:
 			cfg.down_text_interval = float(input('New down text interval (mins): ')) * 60
 			if not self.server.online():
 				self.server.message_timer.new_time(cfg.down_text_interval)
 			self.command('next text')
 
-		elif command == commands[13]:
+		elif command == commands[14]:
 			self.server.stop()
