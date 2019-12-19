@@ -78,24 +78,6 @@ class MServer:
 		self.downtime = []
 		logging.debug('Contact with server successful')
 
-		if log:
-			self.pings.append({'ping': self.last_status.latency, 'time': time.time()})
-
-			self.max_online = max(self.max_online, self.last_status.players.online)
-
-			if self.last_status.players.sample is not None:
-				current_players = []
-				for player_ob in self.last_status.players.sample:
-					current_players.append(player_ob.name)
-
-				for player in self.player_summary.keys():
-					self.player_summary[player].append({'online': player in current_players, 'time': time.time()})
-
-				for player in current_players:
-					if player not in self.player_summary.keys():
-						self.player_summary[player] = []
-						self.player_summary[player].append({'online': True, 'time': time.time()})
-
 		if self.description is None:
 			self.description = self.last_status.description['text']
 			self.max_players = self.last_status.players.max
@@ -106,7 +88,29 @@ class MServer:
 				self.query_allowed = True
 			except socket.timeout:
 				self.query_allowed = False
+				logging.error('Query is not allowed on this server so individual players will not be logged')
+				cfg.try_player_log = False
 			self.print_server_info()
+
+		if log:
+			self.pings.append({'ping': self.last_status.latency, 'time': time.time()})
+
+			self.max_online = max(self.max_online, self.last_status.players.online)
+
+			if cfg.try_player_log:
+				if self.last_status.players.names is not None:
+					current_players = []
+					for player_ob in self.last_status.players.names:
+						current_players.append(player_ob.name)
+
+					for player in self.player_summary.keys():
+						self.player_summary[player].append({'online': player in current_players, 'time': time.time()})
+
+					for player in current_players:
+						if player not in self.player_summary.keys():
+							self.player_summary[player] = []
+							self.player_summary[player].append({'online': True, 'time': time.time()})
+
 		return True
 
 	def print_server_info(self):
@@ -190,12 +194,13 @@ class MServer:
 		logging.info(f'[SERVER ONLINE] Last ping: {self.pings[-1]["ping"]:.0f} ms')
 		logging.info(f'[SERVER ONLINE] Max players: {self.max_online}/{self.max_players}')
 
-		# logging.info('Players online:')
-		# if len(self.player_summary.keys()) == 0:
-		# 	logging.info('None')
-		# else:
-		# 	for player in self.player_summary.keys():
-		# 		logging.info(f'{player}: {self.get_player_time(player) / 3600:.1f} hrs')
+		if cfg.try_player_log:
+			logging.info('Players online:')
+			if len(self.player_summary.keys()) == 0:
+				logging.info('None')
+			else:
+				for player in self.player_summary.keys():
+					logging.info(f'{player}: {self.get_player_time(player) / 3600:.1f} hrs')
 
 	def log_down_message(self):
 		logging.warning(f'[SERVER OFFLINE] Downtime: {self.get_downtime() / 3600:.1f} hrs')
@@ -209,12 +214,13 @@ class MServer:
 		message += f'Max ping: {self.get_max_ping():.0f} ms\r'
 		message += f'Max players: {self.max_online}/{self.max_players}'
 
-		# message += 'Players online:'
-		# if len(self.player_summary.keys()) == 0:
-		# 	message += '\rNone'
-		# else:
-		# 	for player in self.player_summary.keys():
-		# 		message += f'\r{player}: {self.get_player_time(player) / 3600:.1f} hrs'
+		if cfg.try_player_log:
+			message += 'Players online:'
+			if len(self.player_summary.keys()) == 0:
+				message += '\rNone'
+			else:
+				for player in self.player_summary.keys():
+					message += f'\r{player}: {self.get_player_time(player) / 3600:.1f} hrs'
 
 		return message, message_subject
 
