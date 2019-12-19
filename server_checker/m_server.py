@@ -1,8 +1,6 @@
 import logging
 import time
 import socket
-import smtplib
-import sys
 import re
 
 from p_timer import *
@@ -21,10 +19,14 @@ class MServer:
 		self.int_server = MinecraftServer(address_in, port_in)
 		self.address = address_in
 		self.port = port_in
+		self.description = None
+		self.max_players = None
+		self.num_mods = None
+		self.version = None
+		self.query_allowed = None
 
 		self.update_timer = None
 		self.message_timer = None
-		self.current_message_interval = None
 		self.uptime = []
 		self.downtime = []
 		self.player_summary = {}
@@ -32,11 +34,7 @@ class MServer:
 
 		self.last_status = None
 
-		try:
-			self.send_message()
-		except smtplib.SMTPAuthenticationError:
-			logging.critical('Email credentials not accepted. Check email address/password.')
-			sys.exit(0)
+		self.send_message()
 
 		self.previous_update = self.online()
 		self.loop()
@@ -46,10 +44,10 @@ class MServer:
 			self.message_timer.cancel()
 			self.send_message(update_before=False)
 			if self.online():
-				self.current_message_interval = cfg.up_text_interval
+				current_message_interval = cfg.up_text_interval
 			else:
-				self.current_message_interval = cfg.down_text_interval
-			self.message_timer = PTimer(self.current_message_interval, self.send_message)
+				current_message_interval = cfg.down_text_interval
+			self.message_timer = PTimer(current_message_interval, self.send_message)
 		self.update_timer = PTimer(cfg.check_interval, self.loop)
 		self.previous_update = self.online()
 
@@ -98,7 +96,30 @@ class MServer:
 					if player not in self.player_summary.keys():
 						self.player_summary[player] = []
 						self.player_summary[player].append({'online': True, 'time': time.time()})
+
+		if self.description is None:
+			self.description = self.last_status.description['text']
+			self.max_players = self.last_status.players.max
+			self.num_mods = len(self.last_status.raw['modinfo']['modList'])
+			self.version = self.last_status.version.name
+			try:
+				self.int_server.query()
+				self.query_allowed = True
+			except socket.timeout:
+				self.query_allowed = False
+			self.print_server_info()
 		return True
+
+	def print_server_info(self):
+		logging.info('[SERVER INFO]')
+		logging.info(f'Address: {cfg.server_address}:{cfg.server_port}')
+		logging.info(f'Query allowed: {self.query_allowed}')
+		logging.info(f'Description: {self.description}')
+		logging.info(f'Max players: {self.max_players}')
+		if self.num_mods > 0:
+			logging.info(f'Version: {self.version} - {self.num_mods} mods')
+		else:
+			logging.info(f'Version: {self.version} - Vanilla')
 
 	def send_message(self, console=True, text=True, update_before=True):
 		if update_before:
@@ -139,6 +160,8 @@ class MServer:
 		return total / (self.pings[-1]['time'] - self.pings[0]['time'])
 
 	def get_player_time(self, player):
+		if len(self.player_summary[player]) == 1:
+			return 0
 		total = 0
 		for i in range(len(self.player_summary[player]) - 1):
 			if self.player_summary[player][i]['online']:
@@ -158,6 +181,7 @@ class MServer:
 		return self.downtime[-1] - self.downtime[0]
 
 	def log_up_message(self):
+		logging.info('[SERVER UPDATE]')
 		logging.info(f'{self.address} online - Uptime: {self.get_uptime() / 3600:.1f} hrs')
 		logging.info(f'Avg ping: {self.get_avg_ping():.0f} ms')
 		logging.info(f'Max ping: {self.get_max_ping():.0f} ms')
@@ -170,6 +194,7 @@ class MServer:
 				logging.info(f'{player}: {self.get_player_time(player) / 3600:.1f} hrs')
 
 	def log_down_message(self):
+		logging.info('[SERVER UPDATE]')
 		logging.warning(f'{self.address} offline - Downtime: {self.get_downtime() / 3600:.1f} hrs')
 
 	def text_up_message(self):
@@ -179,7 +204,6 @@ class MServer:
 		message += f'{(self.get_uptime() % 86400) / 3600:.1f} hrs\r'
 		message += f'Avg ping: {self.get_avg_ping():.0f} ms\r'
 		message += f'Max ping: {self.get_max_ping():.0f} ms\r'
-		message += f'Last ping: {self.pings[-1]["ping"]:.0f} ms\r'
 		message += 'Players online:'
 		if len(self.player_summary.keys()) == 0:
 			message += '\rNone'

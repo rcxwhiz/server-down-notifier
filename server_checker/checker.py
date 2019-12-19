@@ -1,4 +1,6 @@
 import logging
+import smtplib
+import sys
 import yagmail
 
 from server_checker.checker_setup import *
@@ -11,21 +13,26 @@ class Checker:
 		logging.debug('Initializing checker')
 
 		yag_server = yagmail.SMTP(cfg.email_address, email_password_in)
+		try:
+			yag_server.send(cfg.sms_gateway, 'Python MCStatus', f'Start monitoring {cfg.server_address}')
+		except smtplib.SMTPAuthenticationError:
+			logging.critical('Email credentials not accepted. Check email address/password.')
+			sys.exit(0)
 		self.server = MServer(cfg.server_address, cfg.server_port, yag_server)
 
 	def command(self, command):
 		commands = [
 			'print status',
-			'text status',
-			'get status',
+			'send text',
+			'update',
 			'next text',
-			'next status',
+			'next update',
 			'debug level debug',
 			'debug level info',
 			'debug level warning',
 			'debug level error',
 			'debug level critical',
-			'set status interval',
+			'set update interval',
 			'set up text interval',
 			'set down text interval',
 			'stop'

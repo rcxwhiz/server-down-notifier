@@ -41,5 +41,6 @@ class PTimer:
 			self.start()
 
 	def delete(self):
+		logging.debug('Deleting perfect timer')
 		self.cancel()
 		del self
