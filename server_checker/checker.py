@@ -2,6 +2,7 @@ from datetime import datetime
 import logging
 import smtplib
 import sys
+import re
 import yagmail
 
 from server_checker.checker_setup import *
@@ -17,6 +18,8 @@ class Checker:
 		try:
 			yag_server.send(cfg.sms_gateway, 'Python MCStatus', f'Start monitoring {cfg.server_address}\r'
 			                                                    f'[{datetime.now().strftime("%I:%M:%S %p")}]')
+			format_phone = '(%s) %s-%s' % tuple(re.findall(r'\d{4}$|\d{3}', cfg.sms_gateway[:10]))
+			logging.info(f'Sent text to {format_phone}')
 		except smtplib.SMTPAuthenticationError:
 			logging.critical('Email credentials not accepted. Check email address/password.')
 			sys.exit(0)

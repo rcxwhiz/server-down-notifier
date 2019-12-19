@@ -43,12 +43,14 @@ class MServer:
 	def loop(self):
 		if not (self.update() == self.previous_update):
 			self.message_timer.cancel()
-			self.send_message(update_before=False)
 			if self.online():
-				current_message_interval = cfg.up_text_interval
-			else:
-				current_message_interval = cfg.down_text_interval
-			self.message_timer = PTimer(current_message_interval, self.send_message)
+				self.send_message(update_before=False)
+				if cfg.up_text_interval > 0:
+					self.message_timer = PTimer(cfg.up_text_interval, self.send_message)
+			elif not self.online():
+				self.send_message(update_before=False)
+				if cfg.down_text_interval > 0:
+					self.message_timer = PTimer(cfg.down_text_interval, self.send_message)
 		self.update_timer = PTimer(cfg.check_interval, self.loop)
 		self.previous_update = self.online()
 
