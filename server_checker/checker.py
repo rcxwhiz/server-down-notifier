@@ -1,3 +1,4 @@
+from datetime import datetime
 import logging
 import smtplib
 import sys
@@ -14,7 +15,8 @@ class Checker:
 
 		yag_server = yagmail.SMTP(cfg.email_address, email_password_in)
 		try:
-			yag_server.send(cfg.sms_gateway, 'Python MCStatus', f'Start monitoring {cfg.server_address}')
+			yag_server.send(cfg.sms_gateway, 'Python MCStatus', f'Start monitoring {cfg.server_address}\r'
+			                                                    f'[{datetime.now().strftime("%I:%M:%S %p")}]')
 		except smtplib.SMTPAuthenticationError:
 			logging.critical('Email credentials not accepted. Check email address/password.')
 			sys.exit(0)

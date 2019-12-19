@@ -31,6 +31,7 @@ class MServer:
 		self.downtime = []
 		self.player_summary = {}
 		self.pings = []
+		self.max_online = 0
 
 		self.last_status = None
 
@@ -84,6 +85,9 @@ class MServer:
 
 		if log:
 			self.pings.append({'ping': self.last_status.latency, 'time': time.time()})
+
+			self.max_online = max(self.max_online, self.last_status.players.online)
+
 			if self.last_status.players.sample is not None:
 				current_players = []
 				for player_ob in self.last_status.players.sample:
@@ -111,15 +115,14 @@ class MServer:
 		return True
 
 	def print_server_info(self):
-		logging.info('[SERVER INFO]')
-		logging.info(f'Address: {cfg.server_address}:{cfg.server_port}')
-		logging.info(f'Query allowed: {self.query_allowed}')
-		logging.info(f'Description: {self.description}')
-		logging.info(f'Max players: {self.max_players}')
+		logging.info(f'[SERVER INFO] Address: {cfg.server_address}:{cfg.server_port}')
+		logging.info(f'[SERVER INFO] Query allowed: {self.query_allowed}')
+		logging.info(f'[SERVER INFO] Description: {self.description}')
+		logging.info(f'[SERVER INFO] Max players: {self.max_players}')
 		if self.num_mods > 0:
-			logging.info(f'Version: {self.version} - {self.num_mods} mods')
+			logging.info(f'[SERVER INFO] Version: {self.version} - {self.num_mods} mods')
 		else:
-			logging.info(f'Version: {self.version} - Vanilla')
+			logging.info(f'[SERVER INFO] Version: {self.version} - Vanilla')
 
 	def send_message(self, console=True, text=True, update_before=True):
 		if update_before:
@@ -146,7 +149,9 @@ class MServer:
 
 		self.player_summary = {}
 		self.pings = []
+		self.max_online = 0
 		self.message_timer = PTimer(next_message, self.send_message)
+		logging.debug(f'Next text scheduled in {next_message / 60:.1f} mins')
 
 	def online(self):
 		return self.last_status is not False
@@ -181,21 +186,21 @@ class MServer:
 		return self.downtime[-1] - self.downtime[0]
 
 	def log_up_message(self):
-		logging.info('[SERVER UPDATE]')
-		logging.info(f'{self.address} online - Uptime: {self.get_uptime() / 3600:.1f} hrs')
-		logging.info(f'Avg ping: {self.get_avg_ping():.0f} ms')
-		logging.info(f'Max ping: {self.get_max_ping():.0f} ms')
-		logging.info(f'Last ping: {self.pings[-1]["ping"]:.0f} ms')
-		logging.info('Players online:')
-		if len(self.player_summary.keys()) == 0:
-			logging.info('None')
-		else:
-			for player in self.player_summary.keys():
-				logging.info(f'{player}: {self.get_player_time(player) / 3600:.1f} hrs')
+		logging.info(f'[SERVER ONLINE] Uptime: {self.get_uptime() / 3600:.1f} hrs')
+		logging.info(f'[SERVER ONLINE] Avg ping: {self.get_avg_ping():.0f} ms')
+		logging.info(f'[SERVER ONLINE] Max ping: {self.get_max_ping():.0f} ms')
+		logging.info(f'[SERVER ONLINE] Last ping: {self.pings[-1]["ping"]:.0f} ms')
+		logging.info(f'[SERVER ONLINE] Max players: {self.max_online}/{self.max_players}')
+
+		# logging.info('Players online:')
+		# if len(self.player_summary.keys()) == 0:
+		# 	logging.info('None')
+		# else:
+		# 	for player in self.player_summary.keys():
+		# 		logging.info(f'{player}: {self.get_player_time(player) / 3600:.1f} hrs')
 
 	def log_down_message(self):
-		logging.info('[SERVER UPDATE]')
-		logging.warning(f'{self.address} offline - Downtime: {self.get_downtime() / 3600:.1f} hrs')
+		logging.warning(f'[SERVER OFFLINE] Downtime: {self.get_downtime() / 3600:.1f} hrs')
 
 	def text_up_message(self):
 		message_subject = f'Status {cfg.server_address}: Online'
@@ -204,12 +209,15 @@ class MServer:
 		message += f'{(self.get_uptime() % 86400) / 3600:.1f} hrs\r'
 		message += f'Avg ping: {self.get_avg_ping():.0f} ms\r'
 		message += f'Max ping: {self.get_max_ping():.0f} ms\r'
-		message += 'Players online:'
-		if len(self.player_summary.keys()) == 0:
-			message += '\rNone'
-		else:
-			for player in self.player_summary.keys():
-				message += f'\r{player}: {self.get_player_time(player) / 3600:.1f} hrs'
+		message += f'Max players: {self.max_online}/{self.max_players}'
+
+		# message += 'Players online:'
+		# if len(self.player_summary.keys()) == 0:
+		# 	message += '\rNone'
+		# else:
+		# 	for player in self.player_summary.keys():
+		# 		message += f'\r{player}: {self.get_player_time(player) / 3600:.1f} hrs'
+
 		return message, message_subject
 
 	def text_down_message(self):
