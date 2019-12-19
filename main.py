@@ -1,12 +1,17 @@
+import logging
 import sys
 from getpass import getpass
-from server_checker import *
-print("\nJosh's server down notifier - 2.0")
-email_password = getpass(f'Please enter the password for {cfg.email_address}: ')
+import server_checker as sc
+from hacker_print import hacker_print
+
+print('')
+hacker_print(str(f"Josh's server down notifier v{sc.version}"), delay=0.005)
+print('')
+email_password = getpass(f'Please enter the password for {sc.email_address}: ')
 print('')
 
 logging.info('Starting server down notifier')
-checker = Checker(email_password)
+checker = sc.Checker(email_password)
 del email_password
 
 while True:
