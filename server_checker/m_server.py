@@ -156,7 +156,7 @@ class MServer:
 			next_message = cfg.up_text_interval
 
 		if text:
-			if self.message_timer.int_timer.is_alive():
+			if self.message_timer is not None and self.message_timer.int_timer.is_alive():
 				self.message_timer.cancel()
 			self.yag.send(cfg.sms_gateway, message_subject, message)
 			format_phone = '(%s) %s-%s' % tuple(re.findall(r'\d{4}$|\d{3}', cfg.sms_gateway[:10]))
