@@ -91,7 +91,7 @@ class MServer:
 			if type(self.last_status.description) is str:
 				self.description = self.last_status.description
 			else:
-				self.description = self.last_status['text']
+				self.description = self.last_status.description['text']
 			self.max_players = self.last_status.players.max
 			self.num_mods = len(self.last_status.raw['modinfo']['modList'])
 			self.version = self.last_status.version.name
