@@ -1,13 +1,15 @@
 import logging
 import time
 import socket
+import smtplib
+import sys
 import re
 
 from p_timer import *
 from mcstatus import MinecraftServer
 from datetime import datetime
 
-from server_checker.checker_setup import *
+from server_checker.checker_setup import cfg
 
 
 class MServer:
@@ -29,7 +31,13 @@ class MServer:
 		self.pings = []
 
 		self.last_status = None
-		self.send_message()
+
+		try:
+			self.send_message()
+		except smtplib.SMTPAuthenticationError:
+			logging.critical('Email credentials not accepted. Check email address/password.')
+			sys.exit(0)
+
 		self.previous_update = self.online()
 		self.loop()
 
@@ -46,7 +54,7 @@ class MServer:
 		self.previous_update = self.online()
 
 	def update(self, log=True, retries=0):
-		logging.info(f'Contacting Server {self.address}')
+		logging.debug(f'Contacting Server {self.address}')
 		try:
 			self.last_status = self.int_server.status(cfg.fails_required)
 		except socket.timeout:
@@ -186,3 +194,7 @@ class MServer:
 		message += f'Downtime: {(self.get_downtime() - self.get_downtime() % 86400) / 3600:.1f} days '
 		message += f'{self.get_downtime() / 3600:.1f} hrs'
 		return message, message_subject
+
+	def stop(self):
+		self.message_timer.delete()
+		self.update_timer.delete()

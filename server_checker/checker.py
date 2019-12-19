@@ -10,7 +10,8 @@ class Checker:
 	def __init__(self, email_password_in):
 		logging.debug('Initializing checker')
 
-		self.server = MServer(cfg.server_address, cfg.server_port, yagmail.SMTP(cfg.email_address, email_password_in))
+		yag_server = yagmail.SMTP(cfg.email_address, email_password_in)
+		self.server = MServer(cfg.server_address, cfg.server_port, yag_server)
 
 	def command(self, command):
 		commands = [
@@ -82,5 +83,4 @@ class Checker:
 			self.command('next text')
 
 		elif command == commands[13]:
-			self.server.message_timer.delete()
-			self.server.update_timer.delete()
+			self.server.stop()
