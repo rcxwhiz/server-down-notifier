@@ -2,7 +2,6 @@ import logging
 import time
 import socket
 import sys
-import re
 
 from p_timer import *
 from mcstatus import MinecraftServer
@@ -185,8 +184,7 @@ class MServer:
 			if cfg.include_timestamp:
 				message.insert(0, f'[{datetime.now().strftime("%I:%M:%S %p")}]')
 			self.yag.send(cfg.sms_gateway, subject, '\r'.join(message))
-			format_phone = '(%s) %s-%s' % tuple(re.findall(r'\d{4}$|\d{3}', cfg.sms_gateway[:10]))
-			logging.info(f'Sent text to {format_phone}')
+			logging.info(f'Sent text to {cfg.phone_str}')
 
 		# clears out temporary data once message is sent
 		self.player_summary = {}
