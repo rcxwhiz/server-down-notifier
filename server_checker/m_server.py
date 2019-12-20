@@ -20,14 +20,12 @@ class MServer:
 		self.address = address_in
 		self.port = port_in
 		self.server_info = {}
+		self.server_stats = {}
 
 		self.update_timer = None
 		self.message_timer = None
 		self.uptime = []
 		self.downtime = []
-		self.player_summary = {}
-		self.pings = []
-		self.max_online = 0
 
 		self.last_status = None
 
@@ -58,7 +56,7 @@ class MServer:
 			self.uptime = []
 			self.downtime.append(time.time())
 			logging.info('Attempt to contact server timed out')
-			self.last_status = False
+			self.last_status = None
 			return False
 		except socket.gaierror:
 			# this is usually what happens when the address is incorrect so the program exits
@@ -71,12 +69,12 @@ class MServer:
 			self.downtime.append(time.time())
 			logging.warning('The server responded but not with info')
 			time.sleep(2)
-			self.last_status = False
+			self.last_status = None
 			# this retries the check a few times
 			if retries < 3:
 				return self.update(retries=retries + 1)
 			else:
-				return False
+				return None
 
 		self.uptime.append(time.time())
 		self.downtime = []
@@ -110,9 +108,15 @@ class MServer:
 
 		# if this update is supposed to be logged info is recorded
 		if log:
-			self.pings.append({'ping': self.last_status.latency, 'time': time.time()})
+			if 'pings' not in self.server_stats.keys():
+				self.server_stats['pings'] = [{'ping': self.last_status.latency, 'time': time.time()}]
+			else:
+				self.server_stats['pings'].append({'ping': self.last_status.latency, 'time': time.time()})
 
-			self.max_online = max(self.max_online, self.last_status.players.online)
+			if 'max online' not in self.server_stats.keys():
+				self.server_stats['max online'] = self.last_status.players.online
+			else:
+				self.server_stats['max online'] = max(self.server_stats['max online'], self.last_status.players.online)
 
 			if cfg.include_player_log:
 				query = self.int_server.query()
@@ -121,13 +125,15 @@ class MServer:
 					for player_ob in query.players.names:
 						current_players.append(player_ob.name)
 
-					for player in self.player_summary.keys():
-						self.player_summary[player].append({'online': player in current_players, 'time': time.time()})
+					if 'player summary' not in self.server_stats.keys():
+						self.server_stats['player summary'] = {}
+
+					for player in self.server_stats['player summary'].keys():
+						self.server_stats['player summary'][player].append({'online': player in current_players, 'time': time.time()})
 
 					for player in current_players:
-						if player not in self.player_summary.keys():
-							self.player_summary[player] = []
-							self.player_summary[player].append({'online': True, 'time': time.time()})
+						if player not in self.server_stats['player summary'].keys():
+							self.server_stats['player summary'][player] = [{'online': True, 'time': time.time()}]
 
 		return True
 
@@ -156,15 +162,15 @@ class MServer:
 			if cfg.include_max_ping:
 				message.append(f'Max ping: {self.get_max_ping():.0f} ms')
 			if cfg.include_last_ping:
-				message.append(f'Last ping: {self.pings[-1]["ping"]}')
+				message.append(f'Last ping: {self.server_stats["pings"][-1]["ping"]}')
 			if cfg.include_max_players:
-				message.append(f'Max players: {self.max_online}/{self.server_info["max players"]}')
+				message.append(f'Max players: {self.server_stats["max players"]}/{self.server_info["max players"]}')
 			if cfg.include_player_log:
 				message.append('Players online:')
-				if not self.player_summary:
+				if not self.server_stats['player summary']:
 					message.append('None')
 				else:
-					for player in self.player_summary.keys():
+					for player in self.server_stats['player summary'].keys():
 						message.append(f'\r{player}: {self.get_player_time(player) / 3600:.1f} hrs')
 		else:
 			log_title = '[SERVER OFFLINE]'
@@ -187,9 +193,7 @@ class MServer:
 			logging.info(f'Sent text to {cfg.phone_str}')
 
 		# clears out temporary data once message is sent
-		self.player_summary = {}
-		self.pings = []
-		self.max_online = 0
+		self.server_stats = {}
 
 		# sets next timer
 		if self.message_timer is not None and self.message_timer.int_timer.is_alive():
@@ -200,31 +204,30 @@ class MServer:
 			self.message_timer = PTimer(cfg.down_text_interval, self.send_message)
 
 	def online(self):
-		# my janky way of returning false when the server check fails
-		return self.last_status is not False
+		return self.last_status is not None
 
 	def get_avg_ping(self):
-		if len(self.pings) == 1:
-			return self.pings[0]['ping']
+		if len(self.server_stats['pings']) == 1:
+			return self.server_stats['pings'][0]['ping']
 		total = 0
-		for i in range(len(self.pings) - 1):
-			total += self.pings[i]['ping'] * (self.pings[i + 1]['time'] - self.pings[i]['time'])
-		return total / (self.pings[-1]['time'] - self.pings[0]['time'])
+		for i in range(len(self.server_stats['pings']) - 1):
+			total += self.server_stats['pings'][i]['ping'] * (self.server_stats['pings'][i + 1]['time'] - self.server_stats['pings'][i]['time'])
+		return total / (self.server_stats['pings'][-1]['time'] - self.server_stats['pings'][0]['time'])
 
 	def get_player_time(self, player):
-		if len(self.player_summary[player]) == 1:
+		if len(self.server_stats['player summary'][player]) == 1:
 			return 0
 		total = 0
-		for i in range(len(self.player_summary[player]) - 1):
-			if self.player_summary[player][i]['online']:
-				total += self.player_summary[player][i + 1]['time'] - self.player_summary[player][i]['time']
-		return total / (self.player_summary[player][-1]['time'] - self.player_summary[player][0]['time'])
+		for i in range(len(self.server_stats['player summary'][player]) - 1):
+			if self.server_stats['player summary'][player][i]['online']:
+				total += self.server_stats['player summary'][player][i + 1]['time'] - self.server_stats['player summary'][player][i]['time']
+		return total / (self.server_stats['player summary'][player][-1]['time'] - self.server_stats['player summary'][player][0]['time'])
 
 	def get_max_ping(self):
-		temp_pings = []
-		for point in self.pings:
-			temp_pings.append(point['ping'])
-		return max(temp_pings)
+		ping_vals = []
+		for point in self.server_stats['pings']:
+			ping_vals.append(point['ping'])
+		return max(ping_vals)
 
 	def get_uptime(self):
 		return self.uptime[-1] - self.uptime[0]
