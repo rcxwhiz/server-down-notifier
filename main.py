@@ -20,5 +20,5 @@ while True:
 	checker.command(command)
 
 logging.info('Exiting server down notifier')
-input()
+input('Press any key to exit...')
 sys.exit(0)

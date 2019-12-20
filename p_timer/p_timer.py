@@ -44,3 +44,6 @@ class PTimer:
 		logging.debug('Deleting perfect timer')
 		self.cancel()
 		del self
+
+	def is_alive(self):
+		return self.int_timer.is_alive()

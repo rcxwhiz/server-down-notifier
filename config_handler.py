@@ -10,7 +10,7 @@ CONFIG_NAME = 'config.ini'
 config = ConfigParser()
 if not os.path.exists(os.path.join(os.getcwd(), CONFIG_NAME)):
 	logging.critical(f'{CONFIG_NAME} not found in working directory. Rename config - example.ini?')
-	input()
+	input('Press any key to exit...')
 	sys.exit(0)
 config.read(os.path.join(os.getcwd(), CONFIG_NAME))
 
@@ -25,6 +25,10 @@ logging_level = config.get('setup', 'logging_level')
 fails_required = config.getint('preferrences', 'fails_required')
 down_text_interval = config.getfloat('preferrences', 'down_text_interval') * 60
 up_text_interval = config.getfloat('preferrences', 'up_text_interval') * 60
+test_connection = config.getboolean('preferrences', 'test_connection')
+high_ping = config.getfloat('preferrences', 'high_ping')
+test_on_high_ping = config.getboolean('preferrences', 'test_on_high_ping')
+text_on_high_ping = config.getboolean('preferrences', 'text_on_high_ping')
 
 include_timestamp = config.getboolean('message', 'include_timestamp')
 include_uptime = config.getboolean('message', 'include_uptime')

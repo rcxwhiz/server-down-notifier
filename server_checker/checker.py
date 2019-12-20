@@ -1,6 +1,7 @@
 from datetime import datetime
 import logging
 import smtplib
+import socket
 import sys
 import yagmail
 
@@ -20,7 +21,11 @@ class Checker:
 			logging.info(f'Sent startup text to {cfg.phone_str}')
 		except smtplib.SMTPAuthenticationError:
 			logging.critical('Email credentials not accepted. Check email address/password.')
-			input()
+			input('Press any key to exit...')
+			sys.exit(0)
+		except socket.gaierror:
+			logging.critical('No internet connection!')
+			input('Press any key to exit...')
 			sys.exit(0)
 		self.server = MServer(cfg.server_address, cfg.server_port, yag_server)
 
@@ -60,10 +65,10 @@ class Checker:
 			self.server.update()
 
 		elif command == 'next text':
-			logging.info(f'Next text message in {self.server.message_timer.remaining() / 60:.1f} mins')
+			logging.info(f'Next text message in {self.server.timers["message timer"].remaining() / 60:.1f} mins')
 
 		elif command == 'next update':
-			logging.info(f'Next contact with server in {self.server.update_timer.remaining() / 60:.1f} mins')
+			logging.info(f'Next contact with server in {self.server.timers["update timer"].remaining() / 60:.1f} mins')
 
 		elif command == 'debug level debug':
 			logging.getLogger().setLevel(logging.DEBUG)
@@ -83,19 +88,19 @@ class Checker:
 		elif command == 'set update interval':
 			cfg.check_interval = float(input('New server contact interval (mins): ')) * 60
 
-			self.server.update_timer.new_time(cfg.check_interval)
+			self.server.timers['update timer'].new_time(cfg.check_interval)
 			self.command('next status')
 
 		elif command == 'set up text interval':
 			cfg.up_text_interval = float(input('New up text interval (mins): ')) * 60
 			if self.server.online():
-				self.server.message_timer.new_time(cfg.up_text_interval)
+				self.server.timers['message timer'].new_time(cfg.up_text_interval)
 			self.command('next text')
 
 		elif command == 'set down text interval':
 			cfg.down_text_interval = float(input('New down text interval (mins): ')) * 60
 			if not self.server.online():
-				self.server.message_timer.new_time(cfg.down_text_interval)
+				self.server.timers['message timer'].new_time(cfg.down_text_interval)
 			self.command('next text')
 
 		elif command == 'stop':
