@@ -18,7 +18,6 @@ class MServer:
 		self.yag = yag_in
 		self.int_server = MinecraftServer(address_in, port_in)
 		self.address = address_in
-		self.port = port_in
 		self.server_info = {}
 		self.server_stats = {}
 
@@ -164,7 +163,7 @@ class MServer:
 			if cfg.include_last_ping:
 				message.append(f'Last ping: {self.server_stats["pings"][-1]["ping"]}')
 			if cfg.include_max_players:
-				message.append(f'Max players: {self.server_stats["max players"]}/{self.server_info["max players"]}')
+				message.append(f'Max online: {self.server_stats["max online"]}/{self.server_info["max players"]}')
 			if cfg.include_player_log:
 				message.append('Players online:')
 				if not self.server_stats['player summary']:

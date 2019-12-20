@@ -17,7 +17,7 @@ class Checker:
 		try:
 			message = f'Started monitoring {cfg.server_address}\r[{datetime.now().strftime("%I:%M:%S %p")}]'
 			yag_server.send(cfg.sms_gateway, 'Python MCStatus', message)
-			logging.info(f'Sent text to {cfg.phone_str}')
+			logging.info(f'Sent startup text to {cfg.phone_str}')
 		except smtplib.SMTPAuthenticationError:
 			logging.critical('Email credentials not accepted. Check email address/password.')
 			input()
