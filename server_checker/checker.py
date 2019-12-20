@@ -22,6 +22,7 @@ class Checker:
 			logging.info(f'Sent text to {format_phone}')
 		except smtplib.SMTPAuthenticationError:
 			logging.critical('Email credentials not accepted. Check email address/password.')
+			input()
 			sys.exit(0)
 		self.server = MServer(cfg.server_address, cfg.server_port, yag_server)
 
@@ -48,56 +49,56 @@ class Checker:
 		if command not in commands:
 			logging.error(f'Command not found in {commands}')
 
-		elif command == commands[0]:
+		elif command == 'print status':
 			self.server.send_message(text=False)
 
-		elif command == commands[1]:
+		elif command == 'server info':
 			self.server.print_server_info()
 
-		elif command == commands[2]:
+		elif command == 'send text':
 			self.server.send_message(console=False)
 
-		elif command == commands[3]:
+		elif command == 'update':
 			self.server.update()
 
-		elif command == commands[4]:
+		elif command == 'next text':
 			logging.info(f'Next text message in {self.server.message_timer.remaining() / 60:.1f} mins')
 
-		elif command == commands[5]:
+		elif command == 'next update':
 			logging.info(f'Next contact with server in {self.server.update_timer.remaining() / 60:.1f} mins')
 
-		elif command == commands[6]:
+		elif command == 'debug level debug':
 			logging.getLogger().setLevel(logging.DEBUG)
 
-		elif command == commands[7]:
+		elif command == 'debug level info':
 			logging.getLogger().setLevel(logging.INFO)
 
-		elif command == commands[8]:
+		elif command == 'debug level warning':
 			logging.getLogger().setLevel(logging.WARNING)
 
-		elif command == commands[9]:
+		elif command == 'debug level error':
 			logging.getLogger().setLevel(logging.ERROR)
 
-		elif command == commands[10]:
+		elif command == 'debug level critical':
 			logging.getLogger().setLevel(logging.CRITICAL)
 
-		elif command == commands[11]:
+		elif command == 'set update interval':
 			cfg.check_interval = float(input('New server contact interval (mins): ')) * 60
 
 			self.server.update_timer.new_time(cfg.check_interval)
 			self.command('next status')
 
-		elif command == commands[12]:
+		elif command == 'set up text interval':
 			cfg.up_text_interval = float(input('New up text interval (mins): ')) * 60
 			if self.server.online():
 				self.server.message_timer.new_time(cfg.up_text_interval)
 			self.command('next text')
 
-		elif command == commands[13]:
+		elif command == 'set down text interval':
 			cfg.down_text_interval = float(input('New down text interval (mins): ')) * 60
 			if not self.server.online():
 				self.server.message_timer.new_time(cfg.down_text_interval)
 			self.command('next text')
 
-		elif command == commands[14]:
+		elif command == 'stop':
 			self.server.stop()

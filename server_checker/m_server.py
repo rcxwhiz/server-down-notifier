@@ -20,11 +20,7 @@ class MServer:
 		self.int_server = MinecraftServer(address_in, port_in)
 		self.address = address_in
 		self.port = port_in
-		self.description = None
-		self.max_players = None
-		self.num_mods = None
-		self.version = None
-		self.query_allowed = None
+		self.server_info = {}
 
 		self.update_timer = None
 		self.message_timer = None
@@ -68,6 +64,7 @@ class MServer:
 		except socket.gaierror:
 			# this is usually what happens when the address is incorrect so the program exits
 			logging.critical('Unable to resolve server address from config')
+			input()
 			sys.exit(0)
 		except OSError:
 			# this usualyl happens when the server is still loading or overloaded
@@ -87,22 +84,28 @@ class MServer:
 		logging.debug('Contact with server successful')
 
 		# tests if this is the first successful contact with the server
-		if self.description is None:
+		if not self.server_info:
+			self.server_info['address'] = f'{cfg.server_address}:{cfg.server_port}'
 			if type(self.last_status.description) is str:
-				self.description = self.last_status.description
+				self.server_info['description'] = self.last_status.description
 			else:
-				self.description = self.last_status.description['text']
-			self.max_players = self.last_status.players.max
-			self.num_mods = len(self.last_status.raw['modinfo']['modList'])
-			self.version = self.last_status.version.name
+				self.server_info['description'] = self.last_status.description['text']
+			self.server_info['max players'] = self.last_status.players.max
+			self.server_info['version'] = self.last_status.version.name
+			if len(self.last_status.raw['modinfo']['modList']) > 0:
+				self.server_info['version'] += f" - {len(self.last_status.raw['modinfo']['modList'])} mods"
+			else:
+				self.server_info['version'] += ' - Vanilla'
 			# this tests to see if query is enabled and disables player logging if needed
 			try:
-				self.int_server.query()
-				self.query_allowed = True
+				query = self.int_server.query()
+				self.server_info['query allowed'] = True
+				self.server_info['gametype'] = query.raw['gametype']
 			except socket.timeout:
-				self.query_allowed = False
-				logging.error('Query is not allowed on this server so individual players will not be logged!')
-				cfg.try_player_log = False
+				self.server_info['query allowed'] = False
+				if cfg.include_player_log:
+					logging.error('Query is not allowed on this server so individual players will not be logged!')
+					cfg.try_player_log = False
 			# after the server info is initially populated it is printed
 			self.print_server_info()
 
@@ -112,7 +115,7 @@ class MServer:
 
 			self.max_online = max(self.max_online, self.last_status.players.online)
 
-			if cfg.try_player_log:
+			if cfg.include_player_log:
 				query = self.int_server.query()
 				if len(query.players.names) > 0:
 					current_players = []
@@ -130,45 +133,72 @@ class MServer:
 		return True
 
 	def print_server_info(self):
-		logging.info(f'[SERVER INFO] Address: {cfg.server_address}:{cfg.server_port}')
-		logging.info(f'[SERVER INFO] Query allowed: {self.query_allowed}')
-		logging.info(f'[SERVER INFO] Description: {self.description}')
-		logging.info(f'[SERVER INFO] Max players: {self.max_players}')
-		if self.num_mods > 0:
-			logging.info(f'[SERVER INFO] Version: {self.version} - {self.num_mods} mods')
-		else:
-			logging.info(f'[SERVER INFO] Version: {self.version} - Vanilla')
+		if not self.server_info:
+			logging.warning('No server info has been gathered yet')
+		for data in self.server_info.keys():
+			logging.info(f'[SERVER INFO] {data.capitalize()}: {self.server_info[data]}')
 
 	def send_message(self, console=True, text=True, update_before=True):
 		if update_before:
 			self.update()
 
+		# creates message and subject using config
+		message = []
 		if self.online():
-			if console:
-				self.log_up_message()
-			message, message_subject = self.text_up_message()
-			next_message = cfg.up_text_interval
-
+			log_title = '[SERVER ONLINE]'
+			subject = f'Status {cfg.server_address}: Online'
+			if cfg.include_uptime:
+				uptime_msg = f'Uptime: {int((self.get_uptime() - (self.get_uptime() % 86400)) / 86400)} days '
+				uptime_msg += f'{(self.get_uptime() % 86400) / 3600:.1f} hrs'
+				message.append(uptime_msg)
+			if cfg.include_avg_ping:
+				message.append(f'Avg ping: {self.get_avg_ping():.0f} ms')
+			if cfg.include_max_ping:
+				message.append(f'Max ping: {self.get_max_ping():.0f} ms')
+			if cfg.include_last_ping:
+				message.append(f'Last ping: {self.pings[-1]["ping"]}')
+			if cfg.include_max_players:
+				message.append(f'Max players: {self.max_online}/{self.server_info["max players"]}')
+			if cfg.include_player_log:
+				message.append('Players online:')
+				if not self.player_summary:
+					message.append('None')
+				else:
+					for player in self.player_summary.keys():
+						message.append(f'\r{player}: {self.get_player_time(player) / 3600:.1f} hrs')
 		else:
-			if console:
-				self.log_down_message()
-			message, message_subject = self.text_down_message()
-			next_message = cfg.up_text_interval
+			log_title = '[SERVER OFFLINE]'
+			subject = f'{cfg.server_address} Status: Offline!'
+			if cfg.include_downtime:
+				downtime_msg = f'Downtime: {(self.get_downtime() - self.get_downtime() % 86400) / 3600:.1f} days '
+				downtime_msg += f'{self.get_downtime() / 3600:.1f} hrs'
+				message.append(downtime_msg)
 
+		# sends message to log
+		if console:
+			for line in message:
+				logging.info(f'{log_title} {line}')
+
+		# sends message through sms gateway
 		if text:
-			if self.message_timer is not None and self.message_timer.int_timer.is_alive():
-				self.message_timer.cancel()
-			self.yag.send(cfg.sms_gateway, message_subject, message)
+			if cfg.include_timestamp:
+				message.insert(0, f'[{datetime.now().strftime("%I:%M:%S %p")}]')
+			self.yag.send(cfg.sms_gateway, subject, '\r'.join(message))
 			format_phone = '(%s) %s-%s' % tuple(re.findall(r'\d{4}$|\d{3}', cfg.sms_gateway[:10]))
 			logging.info(f'Sent text to {format_phone}')
-			if next_message > 0:
-				self.message_timer = PTimer(next_message, self.send_message)
-				logging.debug(f'Next text scheduled in {self.message_timer.remaining() / 60:.1f} mins')
 
 		# clears out temporary data once message is sent
 		self.player_summary = {}
 		self.pings = []
 		self.max_online = 0
+
+		# sets next timer
+		if self.message_timer is not None and self.message_timer.int_timer.is_alive():
+			self.message_timer.cancel()
+		if self.online() and cfg.up_text_interval > 0:
+			self.message_timer = PTimer(cfg.up_text_interval, self.send_message)
+		if not self.online() and cfg.down_text_interval > 0:
+			self.message_timer = PTimer(cfg.down_text_interval, self.send_message)
 
 	def online(self):
 		# my janky way of returning false when the server check fails
@@ -202,50 +232,6 @@ class MServer:
 
 	def get_downtime(self):
 		return self.downtime[-1] - self.downtime[0]
-
-	def log_up_message(self):
-		logging.info(f'[SERVER ONLINE] Uptime: {self.get_uptime() / 3600:.1f} hrs')
-		logging.info(f'[SERVER ONLINE] Avg ping: {self.get_avg_ping():.0f} ms')
-		logging.info(f'[SERVER ONLINE] Max ping: {self.get_max_ping():.0f} ms')
-		logging.info(f'[SERVER ONLINE] Last ping: {self.pings[-1]["ping"]:.0f} ms')
-		logging.info(f'[SERVER ONLINE] Max players: {self.max_online}/{self.max_players}')
-
-		if cfg.try_player_log:
-			logging.info('[SERVER ONLINE] Players online:')
-			if len(self.player_summary.keys()) == 0:
-				logging.info('[SERVER ONLINE] None')
-			else:
-				for player in self.player_summary.keys():
-					logging.info(f'[SERVER ONLINE] {player}: {self.get_player_time(player) / 3600:.1f} hrs')
-
-	def log_down_message(self):
-		logging.warning(f'[SERVER OFFLINE] Downtime: {self.get_downtime() / 3600:.1f} hrs')
-
-	def text_up_message(self):
-		message_subject = f'Status {cfg.server_address}: Online'
-		message = f'[{datetime.now().strftime("%I:%M:%S %p")}]\r'
-		message += f'Uptime: {int((self.get_uptime() - (self.get_uptime() % 86400)) / 86400)} days '
-		message += f'{(self.get_uptime() % 86400) / 3600:.1f} hrs\r'
-		message += f'Avg ping: {self.get_avg_ping():.0f} ms\r'
-		message += f'Max ping: {self.get_max_ping():.0f} ms\r'
-		message += f'Max players: {self.max_online}/{self.max_players}'
-
-		if cfg.try_player_log:
-			message += 'Players online:'
-			if len(self.player_summary.keys()) == 0:
-				message += '\rNone'
-			else:
-				for player in self.player_summary.keys():
-					message += f'\r{player}: {self.get_player_time(player) / 3600:.1f} hrs'
-
-		return message, message_subject
-
-	def text_down_message(self):
-		message_subject = f'{cfg.server_address} Status: Offline!'
-		message = f'[{datetime.now().strftime("%I:%M:%S %p")}]\r'
-		message += f'Downtime: {(self.get_downtime() - self.get_downtime() % 86400) / 3600:.1f} days '
-		message += f'{self.get_downtime() / 3600:.1f} hrs'
-		return message, message_subject
 
 	def stop(self):
 		self.message_timer.delete()

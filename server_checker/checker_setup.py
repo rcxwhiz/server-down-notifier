@@ -1,1 +1,1 @@
-import config_setter as cfg
+import config_handler as cfg

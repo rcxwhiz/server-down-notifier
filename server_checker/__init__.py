@@ -1,8 +1,8 @@
 from server_checker.checker import Checker
-from config_setter import email_address, logging_level
+from config_handler import email_address, logging_level
 import coloredlogs
 
-version = 3.2
+version = 3.3
 coloredlogs.DEFAULT_LOG_FORMAT = '[%(asctime)s] [%(levelname)s] %(message)s'
 coloredlogs.DEFAULT_FIELD_STYLES = {
 	'asctime': {'color': 'white'},
