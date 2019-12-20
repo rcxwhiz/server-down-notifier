@@ -135,8 +135,9 @@ class MServer:
 	def print_server_info(self):
 		if not self.server_info:
 			logging.warning('No server info has been gathered yet')
-		for data in self.server_info.keys():
-			logging.info(f'[SERVER INFO] {data.capitalize()}: {self.server_info[data]}')
+		else:
+			for data in self.server_info.keys():
+				logging.info(f'[SERVER INFO] {data.capitalize()}: {self.server_info[data]}')
 
 	def send_message(self, console=True, text=True, update_before=True):
 		if update_before:
