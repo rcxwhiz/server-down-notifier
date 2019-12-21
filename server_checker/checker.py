@@ -21,11 +21,11 @@ class Checker:
 			logging.info(f'Sent startup text to {cfg.phone_str}')
 		except smtplib.SMTPAuthenticationError:
 			logging.critical('Email credentials not accepted. Check email address/password.')
-			input('Press any key to exit...')
+			input('Press enter to exit...')
 			sys.exit(0)
 		except socket.gaierror:
 			logging.critical('No internet connection!')
-			input('Press any key to exit...')
+			input('Press enter to exit...')
 			sys.exit(0)
 		self.server = MServer(cfg.server_address, cfg.server_port, yag_server)
 

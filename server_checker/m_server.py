@@ -78,7 +78,7 @@ class MServer:
 		except socket.gaierror:
 			# this is usually what happens when the address is incorrect so the program exits
 			logging.critical('Unable to resolve server address from config')
-			input('Press any key to exit...')
+			input('Press enter to exit...')
 			sys.exit(0)
 		except OSError:
 			# this usualyl happens when the server is still loading or overloaded

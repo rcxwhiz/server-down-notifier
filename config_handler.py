@@ -10,7 +10,7 @@ CONFIG_NAME = 'config.ini'
 config = ConfigParser()
 if not os.path.exists(os.path.join(os.getcwd(), CONFIG_NAME)):
 	logging.critical(f'{CONFIG_NAME} not found in working directory. Rename config - example.ini?')
-	input('Press any key to exit...')
+	input('Press enter to exit...')
 	sys.exit(0)
 config.read(os.path.join(os.getcwd(), CONFIG_NAME))
 
