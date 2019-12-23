@@ -38,5 +38,6 @@ include_max_ping = config.getboolean('message', 'include_max_ping')
 include_last_ping = config.getboolean('message', 'include_last_ping')
 include_max_players = config.getboolean('message', 'include_max_players')
 include_player_log = config.getboolean('message', 'include_player_log')
+include_fail_reason = config.getboolean('message', 'include_fail_reason')
 
 phone_str = '(%s) %s-%s' % tuple(re.findall(r'\d{4}$|\d{3}', sms_gateway[:10]))

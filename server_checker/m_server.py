@@ -30,6 +30,7 @@ class MServer:
 		self.downtime = []
 
 		self.last_status = None
+		self.reason_offline = None
 
 		# send a first message (will run first update and populate info)
 		self.send_message()
@@ -74,6 +75,7 @@ class MServer:
 			self.downtime.append(time.time())
 			logging.info('Attempt to contact server timed out')
 			self.last_status = None
+			self.reason_offline = 'Attempt to contact server timed out'
 			return False
 		except socket.gaierror:
 			# this is usually what happens when the address is incorrect so the program exits
@@ -87,6 +89,7 @@ class MServer:
 			logging.warning('The server responded but not with info')
 			time.sleep(2)
 			self.last_status = None
+			self.reason_offline = 'The server responded but not with info'
 			# this retries the check a few times
 			if retries < 3:
 				return self.update(retries=retries + 1)
@@ -222,6 +225,8 @@ class MServer:
 				downtime_msg = f'Downtime: {(self.get_downtime() - self.get_downtime() % 86400) / 3600:.1f} days '
 				downtime_msg += f'{self.get_downtime() / 3600:.1f} hrs'
 				message.append(downtime_msg)
+			if cfg.include_fail_reason:
+				message.append(self.reason_offline)
 
 		# sends message to log
 		if console:
