@@ -236,7 +236,7 @@ class MServer:
 		# sends message through sms gateway
 		if text:
 			if cfg.include_timestamp:
-				message.insert(0, f'[{datetime.now().strftime("%I:%M:%S %p")}]')
+				message.insert(0, datetime.now().strftime('%I:%M:%S %p'))
 			self.yag.send(cfg.sms_gateway, subject, '\r'.join(message))
 			logging.info(f'Sent text to {cfg.phone_str}')
 
