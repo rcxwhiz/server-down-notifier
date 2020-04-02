@@ -13,7 +13,7 @@ checker = sc.Checker(email_password)
 del email_password
 
 while True:
-	command = input()
+	command = input('> ')
 	if command == 'stop':
 		checker.command(command)
 		break
