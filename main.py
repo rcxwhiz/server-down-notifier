@@ -13,11 +13,11 @@ checker = sc.Checker(email_password)
 del email_password
 
 while True:
-	command = input('> ')
-	if command == 'stop':
-		checker.command(command)
-		break
-	checker.command(command)
+    command = input('> ')
+    if command == 'stop':
+        checker.command(command)
+        break
+    checker.command(command)
 
 logging.info('Exiting server down notifier')
 input('Press enter to exit...')
